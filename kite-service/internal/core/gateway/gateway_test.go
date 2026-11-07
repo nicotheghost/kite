@@ -155,3 +155,19 @@ func TestConnectErrorReason(t *testing.T) {
 		t.Errorf("other: got %q", got)
 	}
 }
+
+func TestSavedStatusPlaceholders(t *testing.T) {
+	app := &model.App{Name: "Ellie"}
+	entry := &model.AppDiscordStatusEntry{
+		ActivityType:  3,
+		ActivityName:  "{{app.guild_count}} servers",
+		ActivityState: "Powered by {{app.name}}",
+	}
+	activity := presenceForStatusEntry(app, entry).Activities[0]
+	if activity.Name != "0 servers" || activity.State != "Powered by Ellie" {
+		t.Fatalf("unexpected rendered activity: %+v", activity)
+	}
+	if entry.ActivityName != "{{app.guild_count}} servers" {
+		t.Fatal("rendering changed the stored template")
+	}
+}

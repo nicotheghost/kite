@@ -1,13 +1,16 @@
 package gateway
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/arikawa/v3/gateway"
 	"github.com/diamondburned/arikawa/v3/state"
 	"github.com/kitecloud/kite/kite-service/internal/model"
 	"github.com/kitecloud/kite/kite-service/internal/util"
+	"github.com/kitecloud/kite/kite-service/pkg/eval"
 	"github.com/kitecloud/kite/kite-service/pkg/flow"
 )
 
@@ -104,11 +107,11 @@ func presenceForApp(app *model.App) *gateway.UpdatePresenceCommand {
 		entry = app.DiscordStatus.ActiveEntry()
 	}
 
-	return presenceForStatusEntry(entry)
+	return presenceForStatusEntry(app, entry)
 }
 
 // presenceForStatusEntry falls back to Kite's default presence when entry is nil.
-func presenceForStatusEntry(entry *model.AppDiscordStatusEntry) *gateway.UpdatePresenceCommand {
+func presenceForStatusEntry(app *model.App, entry *model.AppDiscordStatusEntry) *gateway.UpdatePresenceCommand {
 	status := discord.OnlineStatus
 	activity := discord.Activity{
 		Type:  discord.CustomActivity,
@@ -121,10 +124,17 @@ func presenceForStatusEntry(entry *model.AppDiscordStatusEntry) *gateway.UpdateP
 			status = discord.Status(entry.Status)
 		}
 
+		templateContext := eval.NewContext(eval.Env{
+			"app": map[string]any{
+				"name":               app.Name,
+				"guild_count":        app.DiscordGuildCount.Int64,
+				"user_install_count": app.DiscordUserInstallCount.Int64,
+			},
+		})
 		activity = flow.StatusActivity(
 			discord.ActivityType(entry.ActivityType),
-			entry.ActivityName,
-			entry.ActivityState,
+			statusText(entry.ActivityName, templateContext),
+			statusText(entry.ActivityState, templateContext),
 			entry.ActivityURL,
 		)
 	}
@@ -133,4 +143,22 @@ func presenceForStatusEntry(entry *model.AppDiscordStatusEntry) *gateway.UpdateP
 		Status:     status,
 		Activities: []discord.Activity{activity},
 	}
+}
+
+func statusText(text string, templateContext eval.Context) string {
+	if !strings.Contains(text, "{{") || !strings.Contains(text, "}}") {
+		return text
+	}
+
+	rendered, err := eval.EvalTemplateKeepSpace(context.Background(), text, templateContext)
+	if err != nil {
+		return text
+	}
+
+	const maxLength = 128
+	value := []rune(rendered.String())
+	if len(value) > maxLength {
+		return string(value[:maxLength])
+	}
+	return string(value)
 }

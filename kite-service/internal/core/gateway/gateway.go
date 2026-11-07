@@ -357,7 +357,7 @@ func (g *Gateway) rotatePresence(ctx context.Context, now time.Time, allowed boo
 			return
 		}
 		g.rotationEntryID = entry.ID
-		presence = presenceForStatusEntry(entry)
+		presence = presenceForStatusEntry(app, entry)
 	} else if g.rotationEntryID != "" {
 		g.rotationEntryID = ""
 		presence = presenceForApp(app)

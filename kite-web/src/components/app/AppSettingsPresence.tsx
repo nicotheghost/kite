@@ -490,6 +490,12 @@ function StatusFields({
             <FormControl>
               <Input type="text" className="w-full" {...field} />
             </FormControl>
+            <FormDescription>
+              Use placeholders in the activity name or second line, such as{" "}
+              <code>{"{{app.name}}"}</code>,{" "}
+              <code>{"{{app.guild_count}}"}</code>, or{" "}
+              <code>{"{{app.user_install_count}}"}</code>.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
