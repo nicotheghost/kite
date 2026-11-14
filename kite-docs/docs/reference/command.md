@@ -20,7 +20,7 @@ Add spaces (` `) to your command names to create sub-commands, this helps organi
 
 ## Updating commands in Discord
 
-Kite updates your commands in Discord a few seconds after you save them, and the `Commands` page shows when it's done. Sometimes you need to reload your Discord client (`Ctrl+R`) for the changes to appear.
+Kite updates your commands in Discord a few seconds after you publish them, and the `Commands` page shows when it's done. Sometimes you need to reload your Discord client (`Ctrl+R`) for the changes to appear.
 
 Disabled commands are removed from Discord, so you can keep a command you're still working on disabled until it's ready. They also don't count toward your plan's limit of commands, see [Paid plans](./premium.md#what-premium-changes).
 

@@ -48,12 +48,17 @@ export default function AppEventListenerPage() {
   }, [setHasUnsavedChanges]);
 
   const save = useCallback(
-    async (data: FlowData, editorSession?: string) => {
+    async (
+      data: FlowData,
+      action: "save" | "publish",
+      editorSession?: string
+    ) => {
       const savedChangeCount = changeCount.current;
 
       try {
         const res = await updateEventListener({
           flow_source: data,
+          draft_action: action,
           editor_session: editorSession,
           base_version: base.current ?? undefined,
         });
@@ -67,15 +72,19 @@ export default function AppEventListenerPage() {
           return false;
         }
 
-        track("event_listener_saved", {
-          type: res.data.type,
-          blocks: data.nodes.filter((n) => !isNoteNode(n)).length,
-        });
-        toast.success(
-          `${capitalize(
-            name.singular
-          )} saved. It may take up to a minute for all changes to take effect.`
-        );
+        if (action === "save") {
+          toast.success("Draft saved.");
+        } else {
+          track("event_listener_saved", {
+            type: res.data.type,
+            blocks: data.nodes.filter((n) => !isNoteNode(n)).length,
+          });
+          toast.success(
+            `${capitalize(
+              name.singular
+            )} published. It may take up to a minute for all changes to take effect.`
+          );
+        }
         base.current = res.data.version;
         if (changeCount.current === savedChangeCount) {
           setHasUnsavedChanges(false);
@@ -112,7 +121,8 @@ export default function AppEventListenerPage() {
       </Head>
       {listener && (
         <FlowPage
-          flowData={listener.flow_source}
+          flowData={listener.draft_flow_source ?? listener.flow_source}
+          hasDraft={!!listener.draft_flow_source}
           context={
             listener.source === "schedule"
               ? "event_schedule"

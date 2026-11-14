@@ -1014,6 +1014,7 @@ export interface Command {
   bundle_install_id: null | string;
   creator_user_id: string;
   flow_source: FlowData;
+  draft_flow_source?: FlowData;
   created_at: string /* RFC3339 */;
   updated_at: string /* RFC3339 */;
   /**
@@ -1034,6 +1035,7 @@ export interface CommandsImportRequest {
 export type CommandsImportResponse = (Command | undefined)[];
 export interface CommandUpdateRequest {
   flow_source: FlowData;
+  draft_action?: string;
   /**
    * EditorSession identifies the editor that saved, see store.EditorChange.
    */
@@ -1091,6 +1093,7 @@ export interface EventListener {
   creator_user_id: string;
   filter?: EventListenerFilter;
   flow_source: FlowData;
+  draft_flow_source?: FlowData;
   created_at: string /* RFC3339 */;
   updated_at: string /* RFC3339 */;
   /**
@@ -1116,6 +1119,7 @@ export interface EventListenersImportRequest {
 export type EventListenersImportResponse = (EventListener | undefined)[];
 export interface EventListenerUpdateRequest {
   flow_source: FlowData;
+  draft_action?: string;
   /**
    * EditorSession and BaseVersion work like in CommandUpdateRequest.
    */

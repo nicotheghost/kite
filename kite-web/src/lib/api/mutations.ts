@@ -336,7 +336,9 @@ export function useCommandUpdateMutation(appId: string, cmdId: string) {
           "Content-Type": "application/json",
         },
       }),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      if (!response.success) return;
+      client.setQueryData(["apps", appId, "commands", cmdId], response);
       client.invalidateQueries({
         queryKey: ["apps", appId, "commands"],
       });
@@ -981,7 +983,12 @@ export function useEventListenerUpdateMutation(appId: string, eventId: string) {
           },
         }
       ),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      if (!response.success) return;
+      client.setQueryData(
+        ["apps", appId, "event-listeners", eventId],
+        response
+      );
       client.invalidateQueries({
         queryKey: ["apps", appId, "event-listeners"],
       });

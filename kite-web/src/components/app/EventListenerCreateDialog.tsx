@@ -108,7 +108,7 @@ export default function EventListenerCreateDialog({
           data.description,
           source === "schedule" ? data.cron : undefined
         ),
-        enabled: true,
+        enabled: false,
       },
       {
         onSuccess(res) {

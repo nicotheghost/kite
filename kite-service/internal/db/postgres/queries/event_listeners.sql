@@ -29,7 +29,12 @@ UPDATE event_listeners SET
     filter = $3,
     description = $4,
     flow_source = $5,
-    updated_at = $6
+    updated_at = $6,
+    draft_flow_source = CASE WHEN sqlc.arg(clear_draft)::boolean THEN NULL ELSE draft_flow_source END
+WHERE id = $1 RETURNING *;
+
+-- name: SaveEventListenerDraft :one
+UPDATE event_listeners SET draft_flow_source = $2
 WHERE id = $1 RETURNING *;
 
 -- name: UpdateEventListenerEnabled :one

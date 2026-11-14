@@ -21,6 +21,9 @@ type ItemChange struct {
 	// made on. The change fails with ErrOutdated if the content changed since,
 	// so it doesn't overwrite a change made elsewhere.
 	BaseVersion string
+	// Draft saves leave the published flow and its history untouched.
+	SaveDraft    bool
+	PublishDraft bool
 }
 
 const (

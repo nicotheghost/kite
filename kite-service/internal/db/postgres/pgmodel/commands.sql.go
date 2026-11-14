@@ -44,7 +44,7 @@ INSERT INTO commands (
     updated_at
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-) RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at
+) RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source
 `
 
 type CreateCommandParams struct {
@@ -85,12 +85,13 @@ func (q *Queries) CreateCommand(ctx context.Context, arg CreateCommandParams) (C
 		&i.FlowSource,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DraftFlowSource,
 	)
 	return i, err
 }
 
 const deleteCommand = `-- name: DeleteCommand :one
-DELETE FROM commands WHERE id = $1 RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at
+DELETE FROM commands WHERE id = $1 RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source
 `
 
 func (q *Queries) DeleteCommand(ctx context.Context, id string) (Command, error) {
@@ -107,12 +108,13 @@ func (q *Queries) DeleteCommand(ctx context.Context, id string) (Command, error)
 		&i.FlowSource,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DraftFlowSource,
 	)
 	return i, err
 }
 
 const deleteCommandsByBundleInstall = `-- name: DeleteCommandsByBundleInstall :many
-DELETE FROM commands WHERE bundle_install_id = $1 RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at
+DELETE FROM commands WHERE bundle_install_id = $1 RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source
 `
 
 func (q *Queries) DeleteCommandsByBundleInstall(ctx context.Context, bundleInstallID pgtype.Text) ([]Command, error) {
@@ -135,6 +137,7 @@ func (q *Queries) DeleteCommandsByBundleInstall(ctx context.Context, bundleInsta
 			&i.FlowSource,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DraftFlowSource,
 		); err != nil {
 			return nil, err
 		}
@@ -147,7 +150,7 @@ func (q *Queries) DeleteCommandsByBundleInstall(ctx context.Context, bundleInsta
 }
 
 const getCommand = `-- name: GetCommand :one
-SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at FROM commands WHERE id = $1
+SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source FROM commands WHERE id = $1
 `
 
 func (q *Queries) GetCommand(ctx context.Context, id string) (Command, error) {
@@ -164,12 +167,13 @@ func (q *Queries) GetCommand(ctx context.Context, id string) (Command, error) {
 		&i.FlowSource,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DraftFlowSource,
 	)
 	return i, err
 }
 
 const getCommandForUpdate = `-- name: GetCommandForUpdate :one
-SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at FROM commands WHERE id = $1 FOR UPDATE
+SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source FROM commands WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetCommandForUpdate(ctx context.Context, id string) (Command, error) {
@@ -186,12 +190,13 @@ func (q *Queries) GetCommandForUpdate(ctx context.Context, id string) (Command, 
 		&i.FlowSource,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DraftFlowSource,
 	)
 	return i, err
 }
 
 const getCommandsByApp = `-- name: GetCommandsByApp :many
-SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at FROM commands WHERE app_id = $1 ORDER BY created_at DESC, id
+SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source FROM commands WHERE app_id = $1 ORDER BY created_at DESC, id
 `
 
 func (q *Queries) GetCommandsByApp(ctx context.Context, appID string) ([]Command, error) {
@@ -214,6 +219,7 @@ func (q *Queries) GetCommandsByApp(ctx context.Context, appID string) ([]Command
 			&i.FlowSource,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DraftFlowSource,
 		); err != nil {
 			return nil, err
 		}
@@ -250,7 +256,7 @@ func (q *Queries) GetEnabledCommandIDs(ctx context.Context) ([]string, error) {
 }
 
 const getEnabledCommandsUpdatesSince = `-- name: GetEnabledCommandsUpdatesSince :many
-SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at FROM commands WHERE enabled = TRUE AND updated_at > $1
+SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source FROM commands WHERE enabled = TRUE AND updated_at > $1
 `
 
 func (q *Queries) GetEnabledCommandsUpdatesSince(ctx context.Context, updatedAt pgtype.Timestamp) ([]Command, error) {
@@ -273,6 +279,7 @@ func (q *Queries) GetEnabledCommandsUpdatesSince(ctx context.Context, updatedAt 
 			&i.FlowSource,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DraftFlowSource,
 		); err != nil {
 			return nil, err
 		}
@@ -284,13 +291,43 @@ func (q *Queries) GetEnabledCommandsUpdatesSince(ctx context.Context, updatedAt 
 	return items, nil
 }
 
+const saveCommandDraft = `-- name: SaveCommandDraft :one
+UPDATE commands SET draft_flow_source = $2
+WHERE id = $1 RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source
+`
+
+type SaveCommandDraftParams struct {
+	ID              string
+	DraftFlowSource []byte
+}
+
+func (q *Queries) SaveCommandDraft(ctx context.Context, arg SaveCommandDraftParams) (Command, error) {
+	row := q.db.QueryRow(ctx, saveCommandDraft, arg.ID, arg.DraftFlowSource)
+	var i Command
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Enabled,
+		&i.AppID,
+		&i.BundleInstallID,
+		&i.CreatorUserID,
+		&i.FlowSource,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DraftFlowSource,
+	)
+	return i, err
+}
+
 const updateCommand = `-- name: UpdateCommand :one
 UPDATE commands SET
     name = $2,
     description = $3,
     flow_source = $4,
-    updated_at = $5
-WHERE id = $1 RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at
+    updated_at = $5,
+    draft_flow_source = CASE WHEN $6::boolean THEN NULL ELSE draft_flow_source END
+WHERE id = $1 RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source
 `
 
 type UpdateCommandParams struct {
@@ -299,6 +336,7 @@ type UpdateCommandParams struct {
 	Description string
 	FlowSource  []byte
 	UpdatedAt   pgtype.Timestamp
+	ClearDraft  bool
 }
 
 func (q *Queries) UpdateCommand(ctx context.Context, arg UpdateCommandParams) (Command, error) {
@@ -308,6 +346,7 @@ func (q *Queries) UpdateCommand(ctx context.Context, arg UpdateCommandParams) (C
 		arg.Description,
 		arg.FlowSource,
 		arg.UpdatedAt,
+		arg.ClearDraft,
 	)
 	var i Command
 	err := row.Scan(
@@ -321,6 +360,7 @@ func (q *Queries) UpdateCommand(ctx context.Context, arg UpdateCommandParams) (C
 		&i.FlowSource,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DraftFlowSource,
 	)
 	return i, err
 }
@@ -329,7 +369,7 @@ const updateCommandEnabled = `-- name: UpdateCommandEnabled :one
 UPDATE commands SET
     enabled = $2,
     updated_at = $3
-WHERE id = $1 RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at
+WHERE id = $1 RETURNING id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source
 `
 
 type UpdateCommandEnabledParams struct {
@@ -352,6 +392,7 @@ func (q *Queries) UpdateCommandEnabled(ctx context.Context, arg UpdateCommandEna
 		&i.FlowSource,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DraftFlowSource,
 	)
 	return i, err
 }

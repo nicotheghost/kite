@@ -64,14 +64,16 @@ export default function EventListenerList({
   );
 
   const listenerActions = (
-    <PlanLimitGate limit={limit} noun={noun} from={from}>
+    <>
       <EventListenerCreateDialog source={source}>
         <Button>Create {name.singular}</Button>
       </EventListenerCreateDialog>
-      <FlowImportDialog kind="event_listener" eventSource={source}>
-        <Button variant="outline">Import {name.singular}</Button>
-      </FlowImportDialog>
-    </PlanLimitGate>
+      <PlanLimitGate limit={limit} noun={noun} from={from}>
+        <FlowImportDialog kind="event_listener" eventSource={source}>
+          <Button variant="outline">Import {name.singular}</Button>
+        </FlowImportDialog>
+      </PlanLimitGate>
+    </>
   );
 
   return (

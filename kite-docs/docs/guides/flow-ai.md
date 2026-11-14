@@ -14,7 +14,7 @@ Open a command or event listener and click on `Ask AI` at the top right of the e
 
 Write what you want, like "Ban the user from the argument and log why" or "Add a cooldown of 10 seconds". The AI changes the flow right away and highlights the blocks it changed.
 
-- **Nothing is saved yet.** Look at the changes, then click on `Save changes`.
+- **Review the changes before saving.** For a command, event listener, scheduled task, or webhook, click `Save draft` to keep the edits or `Publish` to apply them. For a button flow, save its message.
 - **Keep** or **Undo** the changes of each message. Undo reverts everything the AI changed for that message. Editing the flow yourself keeps them too.
 - **Select blocks** before asking to ask about them, like "Why does this block fail?" or "Make this message red".
 - When the AI needs something only you know, like a channel or role, it shows fields to fill in instead of guessing. Click on `Send` when you're done.

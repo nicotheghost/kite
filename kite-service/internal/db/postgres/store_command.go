@@ -141,6 +141,21 @@ func (c *Client) updateCommandWithTx(ctx context.Context, tx pgx.Tx, command *mo
 		return nil, err
 	}
 
+	if change.SaveDraft {
+		draft, err := json.Marshal(command.DraftFlowSource)
+		if err != nil {
+			return nil, err
+		}
+		row, err := q.SaveCommandDraft(ctx, pgmodel.SaveCommandDraftParams{
+			ID:              command.ID,
+			DraftFlowSource: draft,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return rowToCommand(row)
+	}
+
 	flowSource, err := json.Marshal(command.FlowSource)
 	if err != nil {
 		return nil, err
@@ -151,6 +166,7 @@ func (c *Client) updateCommandWithTx(ctx context.Context, tx pgx.Tx, command *mo
 		Name:        command.Name,
 		Description: command.Description,
 		FlowSource:  flowSource,
+		ClearDraft:  change.PublishDraft,
 		UpdatedAt:   pgtype.Timestamp{Time: command.UpdatedAt.UTC(), Valid: true},
 	})
 	if err != nil {
@@ -229,6 +245,13 @@ func rowToCommand(row pgmodel.Command) (*model.Command, error) {
 		return nil, err
 	}
 
+	var draftFlowSource *flow.FlowData
+	if row.DraftFlowSource != nil {
+		if err := json.Unmarshal(row.DraftFlowSource, &draftFlowSource); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal draft flow source: %w", err)
+		}
+	}
+
 	return &model.Command{
 		ID:              row.ID,
 		Name:            row.Name,
@@ -238,6 +261,7 @@ func rowToCommand(row pgmodel.Command) (*model.Command, error) {
 		BundleInstallID: null.NewString(row.BundleInstallID.String, row.BundleInstallID.Valid),
 		CreatorUserID:   row.CreatorUserID,
 		FlowSource:      flowSource,
+		DraftFlowSource: draftFlowSource,
 		CreatedAt:       row.CreatedAt.Time,
 		UpdatedAt:       row.UpdatedAt.Time,
 		ContentVersion:  commandVersion(row),

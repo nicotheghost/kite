@@ -44,12 +44,17 @@ export default function AppCommandPage() {
   }, [setHasUnsavedChanges]);
 
   const save = useCallback(
-    async (data: FlowData, editorSession?: string) => {
+    async (
+      data: FlowData,
+      action: "save" | "publish",
+      editorSession?: string
+    ) => {
       const savedChangeCount = changeCount.current;
 
       try {
         const res = await updateCommand({
           flow_source: data,
+          draft_action: action,
           editor_session: editorSession,
           base_version: base.current ?? undefined,
         });
@@ -63,10 +68,14 @@ export default function AppCommandPage() {
           return false;
         }
 
-        track("command_saved", {
-          blocks: data.nodes.filter((n) => !isNoteNode(n)).length,
-        });
-        toast.success("Command saved.");
+        if (action === "save") {
+          toast.success("Draft saved.");
+        } else {
+          track("command_saved", {
+            blocks: data.nodes.filter((n) => !isNoteNode(n)).length,
+          });
+          toast.success("Command published.");
+        }
         base.current = res.data.version;
         if (changeCount.current === savedChangeCount) {
           setHasUnsavedChanges(false);
@@ -102,7 +111,8 @@ export default function AppCommandPage() {
       </Head>
       {cmd && (
         <FlowPage
-          flowData={cmd.flow_source}
+          flowData={cmd.draft_flow_source ?? cmd.flow_source}
+          hasDraft={!!cmd.draft_flow_source}
           context="command"
           viewportKey={`command:${cmd.id}`}
           hasUnsavedChanges={hasUnsavedChanges}

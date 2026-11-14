@@ -167,7 +167,7 @@ func (q *Queries) GetBundleInstallsByApp(ctx context.Context, appID string) ([]B
 }
 
 const getInstalledCommandsByApp = `-- name: GetInstalledCommandsByApp :many
-SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at FROM commands WHERE app_id = $1 AND bundle_install_id IS NOT NULL
+SELECT id, name, description, enabled, app_id, bundle_install_id, creator_user_id, flow_source, created_at, updated_at, draft_flow_source FROM commands WHERE app_id = $1 AND bundle_install_id IS NOT NULL
 `
 
 func (q *Queries) GetInstalledCommandsByApp(ctx context.Context, appID string) ([]Command, error) {
@@ -190,6 +190,7 @@ func (q *Queries) GetInstalledCommandsByApp(ctx context.Context, appID string) (
 			&i.FlowSource,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DraftFlowSource,
 		); err != nil {
 			return nil, err
 		}
@@ -202,7 +203,7 @@ func (q *Queries) GetInstalledCommandsByApp(ctx context.Context, appID string) (
 }
 
 const getInstalledEventListenersByApp = `-- name: GetInstalledEventListenersByApp :many
-SELECT id, source, type, description, enabled, app_id, bundle_install_id, creator_user_id, filter, flow_source, created_at, updated_at, last_run_at, webhook_secret FROM event_listeners WHERE app_id = $1 AND bundle_install_id IS NOT NULL
+SELECT id, source, type, description, enabled, app_id, bundle_install_id, creator_user_id, filter, flow_source, created_at, updated_at, last_run_at, webhook_secret, draft_flow_source FROM event_listeners WHERE app_id = $1 AND bundle_install_id IS NOT NULL
 `
 
 func (q *Queries) GetInstalledEventListenersByApp(ctx context.Context, appID string) ([]EventListener, error) {
@@ -229,6 +230,7 @@ func (q *Queries) GetInstalledEventListenersByApp(ctx context.Context, appID str
 			&i.UpdatedAt,
 			&i.LastRunAt,
 			&i.WebhookSecret,
+			&i.DraftFlowSource,
 		); err != nil {
 			return nil, err
 		}

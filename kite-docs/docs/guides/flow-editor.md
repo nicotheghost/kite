@@ -4,9 +4,17 @@ sidebar_position: 1.5
 
 # Using the flow editor
 
-Commands, event listeners and buttons are flows of blocks, which you build in the editor. Click on `Save changes` to save a command or event listener. The flow of a button is saved with its message.
+Commands, event listeners, scheduled tasks, webhooks, and buttons are flows of blocks, which you build in the editor. Button flows are saved with their messages.
 
 ![The flow editor with the block explorer on the left and a command on the canvas](./img/flow-editor.webp)
+
+## Saving and publishing flows
+
+Click `Save draft` to keep edits to a command, event listener, scheduled task, or webhook. You can close the editor and come back to the draft later. The published flow keeps running while you edit, and you can save a draft with unfinished blocks.
+
+Click `Publish` to check the flow and apply the changes. If Kite finds a problem, fix it in the editor and publish again. Restoring a flow from version history saves it as a draft, so you can review it before publishing.
+
+Flows you create from scratch start disabled. When the flow is ready, publish your changes and enable it from its list in the app dashboard. Publishing keeps the flow's current enabled or disabled setting.
 
 ## Adding and connecting blocks
 
@@ -36,6 +44,7 @@ On a Mac, use `Cmd` instead of `Ctrl`.
 
 | Shortcut                               | Action                        |
 | -------------------------------------- | ----------------------------- |
+| `Ctrl+S`                               | Save a draft                  |
 | `Ctrl+C`                               | Copy the selected blocks      |
 | `Ctrl+X`                               | Cut the selected blocks       |
 | `Ctrl+V`                               | Paste at the mouse            |

@@ -52,7 +52,7 @@ Discord requires interactions (slash commands, modals & buttons) to compulsorily
 ![Echo Command Flow](./img/echo-flow.webp)
 
 ## Saving your command
-- Click **Save changes** at the top of your page. Kite adds the command to Discord a few seconds later.
+- Click `Publish` at the top of the editor, then enable the command on the `Commands` page. Kite adds it to Discord a few seconds later.
 - Voilà! You've created your first command.
 - Refresh your Discord client and run the command in your server.
 

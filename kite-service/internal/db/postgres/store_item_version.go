@@ -42,10 +42,16 @@ func contentVersion(parts ...[]byte) string {
 }
 
 func commandVersion(row pgmodel.Command) string {
+	if row.DraftFlowSource != nil {
+		return contentVersion(row.FlowSource, row.DraftFlowSource)
+	}
 	return contentVersion(row.FlowSource)
 }
 
 func eventListenerVersion(row pgmodel.EventListener) string {
+	if row.DraftFlowSource != nil {
+		return contentVersion(row.FlowSource, row.DraftFlowSource)
+	}
 	return contentVersion(row.FlowSource)
 }
 

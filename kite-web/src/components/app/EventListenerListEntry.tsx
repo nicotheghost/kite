@@ -1,3 +1,4 @@
+import { Badge } from "../ui/badge";
 import { withoutParameterValues } from "@/lib/flow/parameters";
 import {
   useEventListenerDeleteMutation,
@@ -144,16 +145,18 @@ export default function EventListenerListEntry({
     <Card className="relative">
       <div className="flex items-center justify-between px-6 pt-4 sm:absolute sm:top-0 sm:right-0 sm:h-full sm:flex-col sm:items-end sm:p-3">
         <div className="flex items-center space-x-2">
-          <Tooltip>
-            <TooltipTrigger>
-              <CheckIcon className="h-5 w-5 text-green-500" />
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="text-foreground/90">
-                All changes have been deployed!
-              </div>
-            </TooltipContent>
-          </Tooltip>
+          {listener.enabled && (
+            <Tooltip>
+              <TooltipTrigger>
+                <CheckIcon className="h-5 w-5 text-green-500" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-foreground/90">
+                  The published flow is enabled.
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          )}
           <div className="text-sm text-muted-foreground">
             {formatDateTime(new Date(listener.updated_at))}
           </div>
@@ -180,6 +183,9 @@ export default function EventListenerListEntry({
             <code className="text-xs font-normal text-muted-foreground">
               {scheduleCron}
             </code>
+          )}
+          {listener.draft_flow_source && (
+            <Badge variant="secondary">Draft</Badge>
           )}
           <BundleInstallBadge bundleInstallId={listener.bundle_install_id} />
         </CardTitle>

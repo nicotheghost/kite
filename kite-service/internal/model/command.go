@@ -16,6 +16,7 @@ type Command struct {
 	BundleInstallID null.String
 	CreatorUserID   string
 	FlowSource      flow.FlowData
+	DraftFlowSource *flow.FlowData
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	// ContentVersion identifies the saved content, see

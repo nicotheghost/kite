@@ -14,6 +14,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaveAndExit?: () => void;
+  saveAndExitLabel?: string;
   onDiscardAndExit: () => void;
   isSaving?: boolean;
 }
@@ -22,6 +23,7 @@ export default function UnsavedChangesDialog({
   open,
   onOpenChange,
   onSaveAndExit,
+  saveAndExitLabel = "Save and exit",
   onDiscardAndExit,
   isSaving,
 }: Props) {
@@ -62,7 +64,7 @@ export default function UnsavedChangesDialog({
               }}
               disabled={isSaving}
             >
-              {isSaving ? "Saving..." : "Save and exit"}
+              {isSaving ? "Saving..." : saveAndExitLabel}
             </button>
           )}
         </AlertDialogFooter>

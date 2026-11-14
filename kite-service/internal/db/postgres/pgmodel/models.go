@@ -220,6 +220,7 @@ type Command struct {
 	FlowSource      []byte
 	CreatedAt       pgtype.Timestamp
 	UpdatedAt       pgtype.Timestamp
+	DraftFlowSource []byte
 }
 
 type Entitlement struct {
@@ -248,6 +249,7 @@ type EventListener struct {
 	UpdatedAt       pgtype.Timestamp
 	LastRunAt       pgtype.Timestamp
 	WebhookSecret   pgtype.Text
+	DraftFlowSource []byte
 }
 
 type ItemVersion struct {

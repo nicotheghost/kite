@@ -164,13 +164,26 @@ func (h *CommandHandler) CreateCommands(c *handler.Context, commands []*model.Co
 }
 
 func (h *CommandHandler) HandleCommandUpdate(c *handler.Context, req wire.CommandUpdateRequest) (*wire.CommandUpdateResponse, error) {
-	updated, err := h.PrepareUpdate(c, c.Command, req.FlowSource)
-	if err != nil {
-		return nil, err
+	var updated *model.Command
+	if req.DraftAction == "save" {
+		item := *c.Command
+		item.DraftFlowSource = &req.FlowSource
+		updated = &item
+	} else {
+		var err error
+		updated, err = h.PrepareUpdate(c, c.Command, req.FlowSource)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	change := c.ItemChange(req.EditorSession)
 	change.BaseVersion = req.BaseVersion
+	change.SaveDraft = req.DraftAction == "save"
+	change.PublishDraft = req.DraftAction == "publish"
+	if req.DraftAction != "" && change.BaseVersion == "" {
+		change.BaseVersion = c.Command.ContentVersion
+	}
 	command, err := h.commandStore.UpdateCommand(c.Context(), updated, change)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {

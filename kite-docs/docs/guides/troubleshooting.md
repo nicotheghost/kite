@@ -27,7 +27,7 @@ Your app used all of its [credits](../reference/credit-system.md) for this month
 
 ## My command doesn't show up
 
-Kite updates your commands in Discord a few seconds after you save them. The `Commands` page shows if that worked. If Discord rejected your commands, it shows why and which command caused it. Fix that command and save it again.
+Kite updates your commands in Discord a few seconds after you publish them. The `Commands` page shows if that worked. If Discord rejected your commands, it shows why and which command caused it. Fix that command and publish it again.
 
 Disabled commands don't show up in Discord. Check that the command is enabled in the list of commands.
 

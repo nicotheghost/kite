@@ -20,6 +20,7 @@ type EventListener struct {
 	CreatorUserID   string               `json:"creator_user_id"`
 	Filter          *EventListenerFilter `json:"filter"`
 	FlowSource      flow.FlowData        `json:"flow_source"`
+	DraftFlowSource *flow.FlowData       `json:"draft_flow_source,omitempty"`
 	CreatedAt       time.Time            `json:"created_at"`
 	UpdatedAt       time.Time            `json:"updated_at"`
 	// Version identifies the content, see BaseVersion of the update request.
@@ -62,7 +63,8 @@ func (req EventListenersImportRequest) Validate() error {
 type EventListenersImportResponse = []*EventListener
 
 type EventListenerUpdateRequest struct {
-	FlowSource flow.FlowData `json:"flow_source"`
+	FlowSource  flow.FlowData `json:"flow_source"`
+	DraftAction string        `json:"draft_action,omitempty"`
 	// EditorSession and BaseVersion work like in CommandUpdateRequest.
 	EditorSession string `json:"editor_session,omitempty"`
 	BaseVersion   string `json:"base_version,omitempty"`
@@ -70,8 +72,9 @@ type EventListenerUpdateRequest struct {
 
 func (req EventListenerUpdateRequest) Validate() error {
 	return validation.ValidateStruct(&req,
-		validation.Field(&req.FlowSource, validation.Required),
+		validation.Field(&req.FlowSource, validation.Skip.When(req.DraftAction == "save"), validation.Required),
 		validation.Field(&req.EditorSession, editorSessionLength),
+		validation.Field(&req.DraftAction, validation.In("save", "publish")),
 	)
 }
 
@@ -109,6 +112,7 @@ func EventListenerToWire(eventListener *model.EventListener) *EventListener {
 		CreatorUserID:   eventListener.CreatorUserID,
 		Filter:          (*EventListenerFilter)(eventListener.Filter),
 		FlowSource:      eventListener.FlowSource,
+		DraftFlowSource: eventListener.DraftFlowSource,
 		CreatedAt:       eventListener.CreatedAt,
 		UpdatedAt:       eventListener.UpdatedAt,
 		Version:         eventListener.ContentVersion,

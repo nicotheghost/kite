@@ -25,13 +25,18 @@ interface Props {
   context: FlowContextType;
   viewportKey?: string;
   hasUnsavedChanges: boolean;
+  hasDraft: boolean;
   command?: Command;
   // The install of the template or bundle the flow was added with.
   bundleInstallId?: string | null;
   onChange: () => void;
   isSaving: boolean;
   // Resolves to whether the save succeeded. See useEditorSession.
-  onSave: (data: FlowData, editorSession?: string) => Promise<boolean>;
+  onSave: (
+    data: FlowData,
+    action: "save" | "publish",
+    editorSession?: string
+  ) => Promise<boolean>;
   onExit: () => void;
   versionTarget: ItemVersionTarget;
 }
@@ -42,6 +47,7 @@ function InnerFlowPage({
   context,
   viewportKey,
   hasUnsavedChanges,
+  hasDraft,
   onChange,
   isSaving,
   command,
@@ -55,6 +61,8 @@ function InnerFlowPage({
   const editorRef = useRef<FlowEditorApi>(null);
   const [unsavedDialogOpen, setUnsavedDialogOpen] = useState(false);
   const [saveCount, setSaveCount] = useState(0);
+  const saving = useRef(false);
+  const editCount = useRef(0);
 
   const editorSession = useEditorSession();
   // Set by a restore until it's saved, so it's saved without the session even
@@ -62,11 +70,18 @@ function InnerFlowPage({
   const restorePending = useRef(false);
 
   const handleSave = useCallback(
-    async (data: FlowData) => {
+    async (data: FlowData, action: "save" | "publish" = "save") => {
+      if (saving.current) return false;
+      saving.current = true;
       const ok = await onSave(
         data,
-        restorePending.current ? undefined : editorSession
-      );
+        action,
+        restorePending.current || action === "publish"
+          ? undefined
+          : editorSession
+      ).finally(() => {
+        saving.current = false;
+      });
       if (ok) {
         restorePending.current = false;
         setSaveCount((c) => c + 1);
@@ -82,7 +97,7 @@ function InnerFlowPage({
 
   const history = useVersionHistory({
     target: versionTarget,
-    hasUnsavedChanges,
+    hasUnsavedChanges: hasUnsavedChanges || hasDraft,
     apply: useCallback(
       (content: Record<string, any>) => {
         const data = content as FlowData;
@@ -99,6 +114,7 @@ function InnerFlowPage({
   const { resetUndoChain } = history;
 
   const handleChange = useCallback(() => {
+    editCount.current++;
     onChange();
 
     if (saveOnNextChange.current) {
@@ -123,7 +139,11 @@ function InnerFlowPage({
   }, [onExit]);
 
   const handleSaveAndExit = useCallback(async () => {
-    if (await handleSave(getFlowData())) {
+    const savedEditCount = editCount.current;
+    if (
+      (await handleSave(getFlowData())) &&
+      editCount.current === savedEditCount
+    ) {
       setUnsavedDialogOpen(false);
       onExit();
     }
@@ -137,7 +157,9 @@ function InnerFlowPage({
           isSaving={isSaving}
           command={command}
           bundleInstallId={bundleInstallId}
+          hasDraft={hasDraft}
           onSave={handleSave}
+          onPublish={(data) => handleSave(data, "publish")}
           onExit={handleExitRequest}
           chatOpen={chatOpen}
           onChatOpenChange={setChatOpen}
@@ -159,6 +181,7 @@ function InnerFlowPage({
         open={unsavedDialogOpen}
         onOpenChange={setUnsavedDialogOpen}
         onSaveAndExit={handleSaveAndExit}
+        saveAndExitLabel="Save draft and exit"
         onDiscardAndExit={handleDiscardAndExit}
         isSaving={isSaving}
       />

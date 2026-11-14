@@ -1,3 +1,4 @@
+import { Badge } from "../ui/badge";
 import { withoutParameterValues } from "@/lib/flow/parameters";
 import {
   useCommandDeleteMutation,
@@ -135,6 +136,9 @@ export default function CommandListEntry({
             <TypeIcon className="h-5 w-5 flex-none text-muted-foreground" />
             <div className="min-w-0 break-words">{command.name}</div>
           </div>
+          {command.draft_flow_source && (
+            <Badge variant="secondary">Draft</Badge>
+          )}
           <BundleInstallBadge bundleInstallId={command.bundle_install_id} />
         </CardTitle>
         <CardDescription className="text-sm">

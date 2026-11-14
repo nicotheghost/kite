@@ -172,6 +172,21 @@ func (c *Client) updateEventListenerWithTx(ctx context.Context, tx pgx.Tx, liste
 		return nil, err
 	}
 
+	if change.SaveDraft {
+		draft, err := json.Marshal(listener.DraftFlowSource)
+		if err != nil {
+			return nil, err
+		}
+		row, err := q.SaveEventListenerDraft(ctx, pgmodel.SaveEventListenerDraftParams{
+			ID:              listener.ID,
+			DraftFlowSource: draft,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return rowToEventListener(row)
+	}
+
 	flowSource, err := json.Marshal(listener.FlowSource)
 	if err != nil {
 		return nil, err
@@ -191,6 +206,7 @@ func (c *Client) updateEventListenerWithTx(ctx context.Context, tx pgx.Tx, liste
 		Description: listener.Description,
 		Filter:      rawFilter,
 		FlowSource:  flowSource,
+		ClearDraft:  change.PublishDraft,
 		UpdatedAt:   pgtype.Timestamp{Time: listener.UpdatedAt.UTC(), Valid: true},
 	})
 	if err != nil {
@@ -308,6 +324,13 @@ func rowToEventListener(row pgmodel.EventListener) (*model.EventListener, error)
 		}
 	}
 
+	var draftFlowSource *flow.FlowData
+	if row.DraftFlowSource != nil {
+		if err := json.Unmarshal(row.DraftFlowSource, &draftFlowSource); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal draft flow source: %w", err)
+		}
+	}
+
 	return &model.EventListener{
 		ID:              row.ID,
 		Source:          model.EventSource(row.Source),
@@ -319,6 +342,7 @@ func rowToEventListener(row pgmodel.EventListener) (*model.EventListener, error)
 		CreatorUserID:   row.CreatorUserID,
 		Filter:          filter,
 		FlowSource:      flowSource,
+		DraftFlowSource: draftFlowSource,
 		CreatedAt:       row.CreatedAt.Time,
 		UpdatedAt:       row.UpdatedAt.Time,
 		LastRunAt:       null.NewTime(row.LastRunAt.Time, row.LastRunAt.Valid),

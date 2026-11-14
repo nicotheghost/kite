@@ -72,6 +72,7 @@ type EventListener struct {
 	CreatorUserID   string
 	Filter          *EventListenerFilter
 	FlowSource      flow.FlowData
+	DraftFlowSource *flow.FlowData
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	LastRunAt       null.Time

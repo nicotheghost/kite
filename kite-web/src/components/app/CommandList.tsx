@@ -22,14 +22,16 @@ export default function CommandList() {
   );
 
   const commandActions = (
-    <PlanLimitGate limit={limit} noun="commands" from="commands">
+    <>
       <CommandCreateDialog>
         <Button>Create command</Button>
       </CommandCreateDialog>
-      <FlowImportDialog kind="command">
-        <Button variant="outline">Import command</Button>
-      </FlowImportDialog>
-    </PlanLimitGate>
+      <PlanLimitGate limit={limit} noun="commands" from="commands">
+        <FlowImportDialog kind="command">
+          <Button variant="outline">Import command</Button>
+        </FlowImportDialog>
+      </PlanLimitGate>
+    </>
   );
 
   return (

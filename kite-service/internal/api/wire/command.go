@@ -10,16 +10,17 @@ import (
 )
 
 type Command struct {
-	ID              string        `json:"id"`
-	Name            string        `json:"name"`
-	Description     string        `json:"description"`
-	Enabled         bool          `json:"enabled"`
-	AppID           string        `json:"app_id"`
-	BundleInstallID null.String   `json:"bundle_install_id"`
-	CreatorUserID   string        `json:"creator_user_id"`
-	FlowSource      flow.FlowData `json:"flow_source"`
-	CreatedAt       time.Time     `json:"created_at"`
-	UpdatedAt       time.Time     `json:"updated_at"`
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	Description     string         `json:"description"`
+	Enabled         bool           `json:"enabled"`
+	AppID           string         `json:"app_id"`
+	BundleInstallID null.String    `json:"bundle_install_id"`
+	CreatorUserID   string         `json:"creator_user_id"`
+	FlowSource      flow.FlowData  `json:"flow_source"`
+	DraftFlowSource *flow.FlowData `json:"draft_flow_source,omitempty"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
 	// Version identifies the content, see BaseVersion of the update request.
 	Version string `json:"version"`
 }
@@ -54,7 +55,8 @@ func (req CommandsImportRequest) Validate() error {
 type CommandsImportResponse = []*Command
 
 type CommandUpdateRequest struct {
-	FlowSource flow.FlowData `json:"flow_source"`
+	FlowSource  flow.FlowData `json:"flow_source"`
+	DraftAction string        `json:"draft_action,omitempty"`
 	// EditorSession identifies the editor that saved, see store.EditorChange.
 	EditorSession string `json:"editor_session,omitempty"`
 	// BaseVersion is the version of the command the change was made on. The
@@ -64,8 +66,9 @@ type CommandUpdateRequest struct {
 
 func (req CommandUpdateRequest) Validate() error {
 	return validation.ValidateStruct(&req,
-		validation.Field(&req.FlowSource, validation.Required),
+		validation.Field(&req.FlowSource, validation.Skip.When(req.DraftAction == "save"), validation.Required),
 		validation.Field(&req.EditorSession, editorSessionLength),
+		validation.Field(&req.DraftAction, validation.In("save", "publish")),
 	)
 }
 
@@ -99,6 +102,7 @@ func CommandToWire(command *model.Command) *Command {
 		BundleInstallID: command.BundleInstallID,
 		CreatorUserID:   command.CreatorUserID,
 		FlowSource:      command.FlowSource,
+		DraftFlowSource: command.DraftFlowSource,
 		CreatedAt:       command.CreatedAt,
 		UpdatedAt:       command.UpdatedAt,
 		Version:         command.ContentVersion,

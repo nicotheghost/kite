@@ -71,7 +71,7 @@ export default function CommandCreateDialog({
           data.description,
           data.command_type
         ),
-        enabled: true,
+        enabled: false,
       },
       {
         onSuccess(res) {

@@ -31,7 +31,12 @@ UPDATE commands SET
     name = $2,
     description = $3,
     flow_source = $4,
-    updated_at = $5
+    updated_at = $5,
+    draft_flow_source = CASE WHEN sqlc.arg(clear_draft)::boolean THEN NULL ELSE draft_flow_source END
+WHERE id = $1 RETURNING *;
+
+-- name: SaveCommandDraft :one
+UPDATE commands SET draft_flow_source = $2
 WHERE id = $1 RETURNING *;
 
 -- name: UpdateCommandEnabled :one

@@ -23,6 +23,7 @@ import {
 } from "../app/CommandDeployStatus";
 import { useApp } from "@/lib/hooks/api";
 import { Command } from "@/lib/types/wire.gen";
+import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import {
   chargedFrequentEvent,
@@ -35,11 +36,13 @@ import { BundleInstallNavItem } from "../app/BundleInstallBadge";
 
 interface Props {
   hasUnsavedChanges: boolean;
+  hasDraft: boolean;
   // Commands show whether their changes are in Discord yet.
   command?: Command;
   bundleInstallId?: string | null;
   isSaving: boolean;
   onSave: (d: FlowData) => void;
+  onPublish: (d: FlowData) => void;
   onExit: () => void;
   chatOpen: boolean;
   onChatOpenChange: (open: boolean) => void;
@@ -49,10 +52,12 @@ interface Props {
 
 export default function FlowNav({
   hasUnsavedChanges,
+  hasDraft,
   command,
   bundleInstallId,
   isSaving,
   onSave,
+  onPublish,
   onExit,
   chatOpen,
   onChatOpenChange,
@@ -64,8 +69,8 @@ export default function FlowNav({
   const getFlowData = useGetFlowData();
 
   const save = useCallback(() => {
-    if (!isSaving) onSave(getFlowData());
-  }, [onSave, getFlowData, isSaving]);
+    if (!isSaving && hasUnsavedChanges) onSave(getFlowData());
+  }, [onSave, getFlowData, hasUnsavedChanges, isSaving]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -104,19 +109,21 @@ export default function FlowNav({
           <button
             className="flex space-x-2 text-foreground/80 hover:text-foreground items-center p-1.5 md:p-0 rounded-md hover:bg-muted md:hover:bg-transparent"
             onClick={save}
-            title="Save changes"
-            aria-label="Save changes"
+            title="Save draft"
+            aria-label="Save draft"
           >
             <div className="h-3 w-3 rounded-full bg-foreground/80 flex-none"></div>
-            <span className="hidden md:inline">Save changes</span>
+            <span className="hidden md:inline">Save draft</span>
           </button>
         ) : (
           <div
             className="flex space-x-2 text-foreground/70 items-center p-1.5 md:p-0"
-            title="No unsaved changes"
+            title={hasDraft ? "Draft saved" : "No unsaved changes"}
           >
             <CheckIcon className="h-5 w-5 flex-none" />
-            <span className="hidden md:inline">No unsaved changes</span>
+            <span className="hidden md:inline">
+              {hasDraft ? "Draft saved" : "No unsaved changes"}
+            </span>
           </div>
         )}
         {command && app && (
@@ -131,6 +138,15 @@ export default function FlowNav({
         />
       </div>
       <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-6">
+        {(hasDraft || hasUnsavedChanges) && (
+          <Button
+            size="sm"
+            disabled={isSaving}
+            onClick={() => onPublish(getFlowData())}
+          >
+            Publish
+          </Button>
+        )}
         {history}
         <CreditsStatus />
         <button
@@ -175,12 +191,13 @@ const deployStatuses = {
   pending: {
     icon: <RefreshCwIcon className="h-5 w-5 animate-spin flex-none" />,
     label: "Updating Discord",
-    description: "Your saved changes are on their way to Discord.",
+    description: "Your published changes are on their way to Discord.",
   },
   stopped: {
     icon: <CircleDotIcon className="h-5 w-5 flex-none" />,
     label: "App stopped",
-    description: "Your saved changes go to Discord once your app runs again.",
+    description:
+      "Your published changes go to Discord once your app runs again.",
   },
   error: {
     icon: <AlertCircleIcon className="h-5 w-5 flex-none text-destructive" />,
@@ -197,7 +214,7 @@ const deployStatuses = {
     icon: <CheckIcon className="h-5 w-5 flex-none" />,
     label: "Live in Discord",
     description:
-      "Your saved changes are in Discord. Restart Discord if a change doesn't show up.",
+      "Your published changes are in Discord. Restart Discord if a change doesn't show up.",
   },
 };
 

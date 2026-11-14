@@ -49,7 +49,7 @@ Just click on `Invite app` at top-right of the dashboard's overview page and sel
 3. In the no-code editor drag in a `Create response message` block from the block explorer on the left side
 4. Connect it to the command block by dragging your mouse from the blue dot of one block to the other
 5. Click on the `Create response message` block and type in some text for the response
-6. Save the command by clicking on `Save changes` at the top. Kite adds it to Discord a few seconds later.
+6. Click `Publish` at the top of the editor, then enable your command on the `Commands` page. Kite adds it to Discord a few seconds later.
 
 ![Example Flow](./img/example-flow.webp)
 

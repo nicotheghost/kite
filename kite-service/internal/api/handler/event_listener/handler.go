@@ -165,13 +165,26 @@ func (h *EventListenerHandler) CreateEventListeners(c *handler.Context, eventLis
 }
 
 func (h *EventListenerHandler) HandleEventListenerUpdate(c *handler.Context, req wire.EventListenerUpdateRequest) (*wire.EventListenerUpdateResponse, error) {
-	updated, err := h.PrepareUpdate(c, c.EventListener, req.FlowSource)
-	if err != nil {
-		return nil, err
+	var updated *model.EventListener
+	if req.DraftAction == "save" {
+		item := *c.EventListener
+		item.DraftFlowSource = &req.FlowSource
+		updated = &item
+	} else {
+		var err error
+		updated, err = h.PrepareUpdate(c, c.EventListener, req.FlowSource)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	change := c.ItemChange(req.EditorSession)
 	change.BaseVersion = req.BaseVersion
+	change.SaveDraft = req.DraftAction == "save"
+	change.PublishDraft = req.DraftAction == "publish"
+	if req.DraftAction != "" && change.BaseVersion == "" {
+		change.BaseVersion = c.EventListener.ContentVersion
+	}
 	eventListener, err := h.eventListenerStore.UpdateEventListener(c.Context(), updated, change)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
