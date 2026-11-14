@@ -5,6 +5,7 @@ import {
   LogOutIcon,
   LucideIcon,
   MailIcon,
+  MicIcon,
   MessageSquareDiffIcon,
   MessageSquareIcon,
   MessageSquareXIcon,
@@ -32,7 +33,8 @@ export type EventGroup =
   | "message"
   | "message_id"
   | "emoji"
-  | "audit_log";
+  | "audit_log"
+  | "voice";
 
 export interface DiscordEventType {
   value: string;
@@ -139,6 +141,15 @@ export const discordEventTypes: DiscordEventType[] = [
     note: "Boosts are detected from the message Discord posts when someone boosts the server. The server needs a system messages channel with boost messages enabled, and your bot needs to see it.",
   },
   {
+    value: "guild_boost_remove",
+    label: "Server boost remove",
+    description: "A member stops boosting the server",
+    icon: GemIcon,
+    category: "Members",
+    placeholders: ["user", "server"],
+    note: "Needs the Server Members Intent. Detected when Discord takes the Server Booster role away, which happens once the member's last boost ends. Only works for members your bot has seen since it last started, like by sending a message, joining or being updated.",
+  },
+  {
     value: "guild_audit_log_entry_create",
     label: "Audit log entry",
     description: "Something is logged in the server's audit log",
@@ -147,6 +158,14 @@ export const discordEventTypes: DiscordEventType[] = [
     // The user is whoever did it, the channel the one the entry is about.
     placeholders: ["audit_log", "user", "server", "channel"],
     note: "Runs for bans, kicks, timeouts, role changes, channel changes and more. Your bot needs the View Audit Log permission in the server. Pick the actions with an Event Filter.",
+  },
+  {
+    value: "voice_state_update",
+    label: "Voice state update",
+    description: "A member joins, leaves, or moves voice channels",
+    icon: MicIcon,
+    category: "Voice",
+    placeholders: ["voice", "user", "server", "channel"],
   },
   {
     value: "guild_create",

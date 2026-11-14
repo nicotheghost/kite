@@ -73,12 +73,18 @@ func (d *EventData) UserID() discord.UserID {
 		return data.User.ID
 	case *gateway.GuildMemberUpdateEvent:
 		return data.User.ID
+	case *guildevent.BoostRemove:
+		// The member who stopped boosting.
+		return data.User.ID
 	case *gateway.MessageReactionAddEvent:
 		return data.UserID
 	case *gateway.MessageReactionRemoveEvent:
 		return data.UserID
 	case *gateway.GuildAuditLogEntryCreateEvent:
-		// Whoever did it.
+		return data.UserID
+	case *gateway.VoiceStateUpdateEvent:
+		return data.UserID
+	case *guildevent.VoiceStateUpdate:
 		return data.UserID
 	case *guildevent.MessageDelete:
 		// The author, if the bot saw the message.
@@ -103,6 +109,8 @@ func (d *EventData) GuildID() discord.GuildID {
 		return data.GuildID
 	case *gateway.GuildMemberUpdateEvent:
 		return data.GuildID
+	case *guildevent.BoostRemove:
+		return data.GuildID
 	case *gateway.MessageReactionAddEvent:
 		return data.GuildID
 	case *gateway.MessageReactionRemoveEvent:
@@ -114,6 +122,10 @@ func (d *EventData) GuildID() discord.GuildID {
 	case *guildevent.MessageDelete:
 		return data.GuildID
 	case *gateway.GuildAuditLogEntryCreateEvent:
+		return data.GuildID
+	case *gateway.VoiceStateUpdateEvent:
+		return data.GuildID
+	case *guildevent.VoiceStateUpdate:
 		return data.GuildID
 	}
 	return 0
@@ -135,6 +147,13 @@ func (d *EventData) ChannelID() discord.ChannelID {
 		return data.ChannelID
 	case *gateway.GuildAuditLogEntryCreateEvent:
 		return auditlog.ChannelID(data.AuditLogEntry)
+	case *gateway.VoiceStateUpdateEvent:
+		return data.ChannelID
+	case *guildevent.VoiceStateUpdate:
+		if !data.ChannelID.IsValid() && data.OldChannelID.IsValid() {
+			return data.OldChannelID
+		}
+		return data.ChannelID
 	}
 	return 0
 }

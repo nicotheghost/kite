@@ -69,14 +69,16 @@ The output of previously executed blocks is available in all subsequent blocks a
 
 - [Join voice channel](./actions/action_voice_channel_join.md) - Make the app join a voice channel
 - [Leave voice channel](./actions/action_voice_channel_leave.md) - Make the app leave its voice channel
+- [Edit voice state](./actions/action_member_voice_edit.md) - Server-mute, deafen or move members in voice
 - [Play audio](./actions/action_voice_audio_play.md) - Play an uploaded sound in a voice channel
 - [Stop audio](./actions/action_voice_audio_stop.md) - Stop the audio the app plays
+- [Play soundboard sound](./actions/action_soundboard_sound_play.md) - Play a soundboard sound in a voice channel
 
 ## Bot blocks
 
 - [Set status](./actions/action_status_set.md) - Change the app's status and activity
 - [Leave server](./actions/action_server_leave.md) - Make the app leave the server the flow runs in
-- [Edit server profile](./actions/action_server_profile_edit.md) - Change the bot's nickname, avatar, banner or bio in a server
+- [Edit server profile](./actions/action_server_profile_edit.md) - Change the bot's nickname, avatar, banner, bio, or name style in a server
 
 ## Variable blocks
 
@@ -97,6 +99,7 @@ The output of previously executed blocks is available in all subsequent blocks a
 ## Utility blocks
 
 - [Calculate Value](./actions/action_expression_evaluate.md) - Evaluate expressions and calculations
+- [Run JavaScript](./actions/action_javascript_run.md) - Run a short piece of JavaScript and use what it returns
 - [Generate Random Value](./actions/action_random_generate.md) - Generate random numbers or pick random items from a list
 - [Lookup Value](./actions/action_value_lookup.md) - Find the value for a key in a table
 - [Log Message](./actions/action_log.md) - Log messages for debugging
@@ -113,6 +116,10 @@ Integration blocks use services outside of Discord. They have their own **Integr
 ### Roblox
 
 - [Get Roblox User](./actions/action_roblox_user_get.md) - Retrieve Roblox user information
+- [Get Bloxlink user](./actions/action_bloxlink_user_get.md) - Get the Roblox user a member verified as with Bloxlink
+- [Get Roblox group member](./actions/action_roblox_group_member_get.md) - Get the roles of a user in your Roblox group
+- [Change Roblox group role](./actions/action_roblox_group_member_role_edit.md) - Rank a group member, or give or take a role
+- [Answer Roblox join request](./actions/action_roblox_group_join_request_respond.md) - Accept or decline a request to join your Roblox group
 
 ### Cookie API
 

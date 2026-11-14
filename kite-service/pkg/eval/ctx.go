@@ -32,6 +32,9 @@ type Context struct {
 	// KeepUnresolved keeps placeholders that fail or are empty as they are
 	// written, for messages sent without an interaction or event to fill them.
 	KeepUnresolved bool
+	// Values replace the placeholders of these expressions with text, for
+	// requests sent from the editor, where there's no event to fill them in.
+	Values map[string]string
 }
 
 type Env map[string]any
@@ -190,8 +193,10 @@ type CommandEnv struct {
 	interaction *discord.InteractionEvent
 	cmd         *discord.CommandInteraction
 
-	ID   string         `expr:"id" json:"id"`
-	Args map[string]any `expr:"args" json:"args"`
+	ID            string         `expr:"id" json:"id"`
+	Args          map[string]any `expr:"args" json:"args"`
+	TargetUser    any            `expr:"target_user" json:"target_user"`
+	TargetMessage *MessageEnv    `expr:"target_message" json:"target_message"`
 }
 
 func newCommandEnv(i *discord.InteractionEvent, guild guildLookup) *CommandEnv {
@@ -253,9 +258,33 @@ func newCommandEnv(i *discord.InteractionEvent, guild guildLookup) *CommandEnv {
 		addArg(option)
 	}
 
+	// The fields of a missing target, like for a slash command, are empty
+	// instead of failing.
+	var targetUser any = (*UserEnv)(nil)
+	if targetID := data.TargetUserID(); targetID.IsValid() {
+		user, userExists := data.Resolved.Users[targetID]
+		member, memberExists := data.Resolved.Members[targetID]
+		if memberExists {
+			if !userExists {
+				user = discord.User{ID: targetID}
+			}
+			member.User = user
+			targetUser = guild.memberEnv(member)
+		} else if userExists {
+			targetUser = NewUserEnv(user)
+		}
+	}
+
+	targetMessage := &MessageEnv{}
+	if msg, ok := data.Resolved.Messages[data.TargetMessageID()]; ok && msg.ID.IsValid() {
+		targetMessage = NewMessageEnv(msg)
+	}
+
 	return &CommandEnv{
-		interaction: i,
-		cmd:         data,
+		interaction:   i,
+		cmd:           data,
+		TargetUser:    targetUser,
+		TargetMessage: targetMessage,
 
 		ID:   data.ID.String(),
 		Args: args,
@@ -471,6 +500,20 @@ type EventEnv struct {
 	Schedule *ScheduleEnv `expr:"schedule" json:"schedule"`
 	Webhook  *WebhookEnv  `expr:"webhook" json:"webhook"`
 	AuditLog *AuditLogEnv `expr:"audit_log" json:"audit_log"`
+	Voice    *VoiceEnv    `expr:"voice" json:"voice"`
+}
+
+// VoiceEnv is what changed for a member in voice. The channel of the event is
+// the one they're in now, or the one they left.
+type VoiceEnv struct {
+	// Action is join, leave or move, as the Event Filter matches it.
+	Action string `expr:"action" json:"action"`
+	// OldChannel is the channel the member was in before, nil if they joined.
+	OldChannel *CurrentChannelEnv `expr:"old_channel" json:"old_channel"`
+}
+
+func (v VoiceEnv) String() string {
+	return v.Action
 }
 
 type ScheduleEnv struct {
@@ -663,6 +706,16 @@ func NewEventEnv(event ws.Event, session *state.State) *EventEnv {
 		env.User = NewUserEnv(e.User)
 		env.Member = env.User
 		env.Guild = guild(e.GuildID).guildEnv()
+	case *guildevent.BoostRemove:
+		// The cache keeps when the member joined, which the event leaves out.
+		// It never updates when they started boosting, so that's cleared, as
+		// they aren't boosting anymore.
+		member, _ := guild(e.GuildID).member(e.User.ID)
+		e.UpdateMember(&member)
+		member.BoostedSince = discord.Timestamp{}
+		env.Member = guild(e.GuildID).memberEnv(member)
+		env.User = env.Member
+		env.Guild = guild(e.GuildID).guildEnv()
 	case *gateway.MessageReactionAddEvent:
 		if e.Member != nil {
 			env.Member = guild(e.GuildID).memberEnv(*e.Member)
@@ -710,6 +763,48 @@ func NewEventEnv(event ws.Event, session *state.State) *EventEnv {
 			env.Channel = currentChannelEnv(session, id, nil)
 		}
 		env.AuditLog = NewAuditLogEnv(e.AuditLogEntry)
+	case *gateway.VoiceStateUpdateEvent:
+		if e.Member != nil {
+			env.Member = guild(e.GuildID).memberEnv(*e.Member)
+			env.User = env.Member
+		} else if member, ok := guild(e.GuildID).member(e.UserID); ok {
+			env.Member = guild(e.GuildID).memberEnv(member)
+			env.User = env.Member
+		} else {
+			env.User = NewUserIDEnv(e.UserID)
+			env.Member = env.User
+		}
+		if e.GuildID != 0 {
+			env.Guild = guild(e.GuildID).guildEnv()
+		}
+		if e.ChannelID.IsValid() {
+			env.Channel = currentChannelEnv(session, e.ChannelID, nil)
+		}
+	case *guildevent.VoiceStateUpdate:
+		if e.Member != nil {
+			env.Member = guild(e.GuildID).memberEnv(*e.Member)
+			env.User = env.Member
+		} else if member, ok := guild(e.GuildID).member(e.UserID); ok {
+			env.Member = guild(e.GuildID).memberEnv(member)
+			env.User = env.Member
+		} else {
+			env.User = NewUserIDEnv(e.UserID)
+			env.Member = env.User
+		}
+		if e.GuildID != 0 {
+			env.Guild = guild(e.GuildID).guildEnv()
+		}
+		chID := e.ChannelID
+		if !chID.IsValid() && e.OldChannelID.IsValid() {
+			chID = e.OldChannelID
+		}
+		if chID.IsValid() {
+			env.Channel = currentChannelEnv(session, chID, nil)
+		}
+		env.Voice = &VoiceEnv{Action: e.Action}
+		if e.OldChannelID.IsValid() {
+			env.Voice.OldChannel = currentChannelEnv(session, e.OldChannelID, nil)
+		}
 	case *webhook.Event:
 		env.Webhook = NewWebhookEnv(e)
 	}
@@ -784,6 +879,7 @@ func NewContextFromEvent(event ws.Event, session *state.State) Context {
 			"schedule":  env.Schedule,
 			"webhook":   env.Webhook,
 			"audit_log": env.AuditLog,
+			"voice":     env.Voice,
 			"app":       NewAppEnv(session),
 		},
 	}
@@ -1802,6 +1898,45 @@ func NewThingEnv(t thing.Thing) any {
 	default:
 		return t.Value
 	}
+}
+
+// ThingJSON encodes a thing with the fields its placeholders have, like the
+// display_name of a user, where thing.JSONValue gives Discord objects as
+// their ID. Fields that are only computed when a placeholder reads them, like
+// user.role_names, are left out, as the envs only tag the others for JSON.
+func ThingJSON(t thing.Thing) (json.RawMessage, error) {
+	return json.Marshal(jsonEnv(t))
+}
+
+// jsonEnv is NewThingEnv with the body and data of HTTP responses, which
+// their env only reads when a placeholder uses them. It isn't a MarshalJSON
+// of the env, which would change what toJSON gives in placeholders.
+func jsonEnv(t thing.Thing) any {
+	switch t.Type {
+	case thing.TypeHTTPResponse:
+		env := NewHTTPResponseEnv(t.HTTPResponse())
+		body, _ := env.BodyFunc()
+		data, _ := env.DataFunc()
+		return map[string]any{
+			"status":      env.Status,
+			"status_code": env.StatusCode,
+			"body":        body,
+			"data":        data,
+		}
+	case thing.TypeArray:
+		res := make([]any, len(t.Array()))
+		for i, v := range t.Array() {
+			res[i] = jsonEnv(v)
+		}
+		return res
+	case thing.TypeObject:
+		res := make(map[string]any, len(t.Object()))
+		for k, v := range t.Object() {
+			res[k] = jsonEnv(v)
+		}
+		return res
+	}
+	return NewThingEnv(t)
 }
 
 type AppEnv struct {

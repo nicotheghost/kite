@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -55,6 +56,9 @@ func trackDerivedEvents(session *state.State, dispatch func(gateway.Event)) {
 // cache is the part of the state cache deriving events reads.
 type cache interface {
 	Message(discord.ChannelID, discord.MessageID) (*discord.Message, error)
+	VoiceState(discord.GuildID, discord.UserID) (*discord.VoiceState, error)
+	Member(discord.GuildID, discord.UserID) (*discord.Member, error)
+	Role(discord.GuildID, discord.RoleID) (*discord.Role, error)
 }
 
 // deriveEvents returns the events Kite derives from a Discord event. c is the
@@ -74,14 +78,61 @@ func deriveEvents(c cache, edits *editTimes, e gateway.Event) []guildevent.Event
 			del.Message = msg
 		}
 		return []guildevent.Event{del}
+	case *gateway.GuildMemberUpdateEvent:
+		// Discord has no event for a member who stops boosting, but it takes
+		// the booster role away once their last boost ends. Without the
+		// cached member there's no telling which roles they lost.
+		old, err := c.Member(e.GuildID, e.User.ID)
+		if err != nil {
+			return nil
+		}
+		for _, id := range old.RoleIDs {
+			if slices.Contains(e.RoleIDs, id) {
+				continue
+			}
+			if role, err := c.Role(e.GuildID, id); err == nil && isBoosterRole(role) {
+				return []guildevent.Event{&guildevent.BoostRemove{GuildMemberUpdateEvent: *e}}
+			}
+		}
 	case *gateway.MessageUpdateEvent:
 		// Message Update listeners only run for servers.
 		if !e.GuildID.IsValid() || !isEdit(c, edits, e) {
 			return nil
 		}
 		return []guildevent.Event{&guildevent.MessageEdit{MessageUpdateEvent: *e}}
+	case *gateway.VoiceStateUpdateEvent:
+		if !e.GuildID.IsValid() {
+			return nil
+		}
+		var oldChannelID discord.ChannelID
+		if old, err := c.VoiceState(e.GuildID, e.UserID); err == nil && old != nil {
+			oldChannelID = old.ChannelID
+		}
+		// Muting, deafening, streaming, and turning on the camera keep the
+		// channel, and would run the listener for every click.
+		if e.ChannelID == oldChannelID {
+			return nil
+		}
+		action := "move"
+		switch {
+		case !oldChannelID.IsValid():
+			action = "join"
+		case !e.ChannelID.IsValid():
+			action = "leave"
+		}
+		return []guildevent.Event{&guildevent.VoiceStateUpdate{
+			VoiceStateUpdateEvent: *e,
+			OldChannelID:          oldChannelID,
+			Action:                action,
+		}}
 	}
 	return nil
+}
+
+// isBoosterRole reports whether a role is the server's booster role, which
+// Discord manages and gives to every member who boosts.
+func isBoosterRole(role *discord.Role) bool {
+	return role.Tags.PremiumSubscriber
 }
 
 // isEdit reports whether a MESSAGE_UPDATE is an edit, by the time of the last

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -58,11 +59,21 @@ type entityLinks struct {
 	MessageID         null.String
 	MessageInstanceID null.Int
 	FlowSourceID      null.String // For message templates that have multiple flows
+	// EventSource tells Discord event listeners, scheduled tasks and webhooks
+	// apart for usage records. They are all event listeners otherwise. The
+	// zero value counts as Discord.
+	EventSource model.EventSource
 }
 
 func (l entityLinks) usageRecordType() model.UsageRecordType {
 	switch {
 	case l.EventListenerID.Valid:
+		switch l.EventSource {
+		case model.EventSourceWebhook:
+			return model.UsageRecordTypeWebhookFlowExecution
+		case model.EventSourceSchedule:
+			return model.UsageRecordTypeScheduleFlowExecution
+		}
 		return model.UsageRecordTypeEventListenerFlowExecution
 	case l.MessageID.Valid:
 		return model.UsageRecordTypeMessageFlowExecution
@@ -186,7 +197,7 @@ func (s Env) FlowContextWithProviders(
 
 	fCtx := flow.NewContext(
 		ctx,
-		30*time.Second,
+		flow.Timeout,
 		data,
 		providers,
 		flow.FlowContextLimits{
@@ -324,7 +335,9 @@ func (s Env) storeLogEntry(entry model.LogEntry) {
 
 	// Create log entry which will be displayed in the dashboard
 	err := s.LogStore.CreateLogEntry(ctx, entry)
-	if err != nil {
+	// Deleted while it ran, like an event listener removed in the meantime,
+	// so there's nowhere to show the entry.
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		slog.With("error", err).With("app_id", entry.AppID).Error("Failed to create log entry from engine")
 	}
 }

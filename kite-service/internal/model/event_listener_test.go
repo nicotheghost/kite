@@ -20,8 +20,10 @@ func TestDiscordEventTypesHaveEventFilterTargets(t *testing.T) {
 		EventListenerTypeDiscordGuildCreate,
 		EventListenerTypeDiscordGuildDelete,
 		EventListenerTypeDiscordGuildBoost,
+		EventListenerTypeDiscordGuildBoostRemove,
 		EventListenerTypeDiscordDirectMessageCreate,
 		EventListenerTypeDiscordGuildAuditLogEntryCreate,
+		EventListenerTypeDiscordVoiceStateUpdate,
 	} {
 		if len(flow.EventFilterTargets(string(eventType))) == 0 {
 			t.Errorf("%s has no event filter targets", eventType)

@@ -19,6 +19,7 @@ import (
 	"github.com/diamondburned/arikawa/v3/utils/json/option"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/kitecloud/kite/kite-service/pkg/eval"
+	"github.com/kitecloud/kite/kite-service/pkg/js"
 	"github.com/kitecloud/kite/kite-service/pkg/message"
 	"github.com/kitecloud/kite/kite-service/pkg/provider"
 	"github.com/kitecloud/kite/kite-service/pkg/schedule"
@@ -71,6 +72,16 @@ func (d FlowData) WithCommandName(name string) FlowData {
 		}
 	}
 	return d
+}
+
+// CommandType is the type in Discord of the flow's command.
+func (d FlowData) CommandType() discord.CommandType {
+	for _, node := range d.Nodes {
+		if node.Type == FlowNodeTypeEntryCommand {
+			return node.Data.CommandType.Discord()
+		}
+	}
+	return discord.ChatInputCommand
 }
 
 func (d FlowData) Validate() error {
@@ -202,6 +213,7 @@ const (
 	FlowNodeTypeActionGuildGet              FlowNodeType = "action_guild_get"
 	FlowNodeTypeActionMessageGet            FlowNodeType = "action_message_get"
 	FlowNodeTypeActionRobloxUserGet         FlowNodeType = "action_roblox_user_get"
+	FlowNodeTypeActionBloxlinkUserGet       FlowNodeType = "action_bloxlink_user_get"
 	FlowNodeTypeActionHTTPRequest           FlowNodeType = "action_http_request"
 	FlowNodeTypeActionDiscordAPIRequest     FlowNodeType = "action_discord_api_request"
 	FlowNodeTypeActionAIChatCompletion      FlowNodeType = "action_ai_chat_completion"
@@ -209,6 +221,7 @@ const (
 	FlowNodeTypeActionAIScore               FlowNodeType = "action_ai_score"
 	FlowNodeTypeActionAITranslate           FlowNodeType = "action_ai_translate"
 	FlowNodeTypeActionExpressionEvaluate    FlowNodeType = "action_expression_evaluate"
+	FlowNodeTypeActionJavaScriptRun         FlowNodeType = "action_javascript_run"
 	FlowNodeTypeActionRandomGenerate        FlowNodeType = "action_random_generate"
 	FlowNodeTypeActionValueLookup           FlowNodeType = "action_value_lookup"
 	FlowNodeTypeActionLog                   FlowNodeType = "action_log"
@@ -249,6 +262,11 @@ const (
 	FlowNodeTypeControlAICheck               FlowNodeType = "control_ai_check"
 
 	FlowNodeTypeSuspendResponseModal FlowNodeType = "suspend_response_modal"
+
+	// Roblox group blocks
+	FlowNodeTypeActionRobloxGroupMemberGet          FlowNodeType = "action_roblox_group_member_get"
+	FlowNodeTypeActionRobloxGroupMemberRoleEdit     FlowNodeType = "action_roblox_group_member_role_edit"
+	FlowNodeTypeActionRobloxGroupJoinRequestRespond FlowNodeType = "action_roblox_group_join_request_respond"
 )
 
 // EventTypeScheduleCron is the event type of listeners that run on a cron
@@ -307,7 +325,8 @@ type FlowNodeData struct {
 	TemporaryName string `json:"temporary_name,omitempty"`
 
 	// Command Entry
-	CommandArgumentOrder []string `json:"command_argument_order,omitempty"`
+	CommandType          CommandType `json:"command_type,omitempty"`
+	CommandArgumentOrder []string    `json:"command_argument_order,omitempty"`
 
 	// Command Argument
 	CommandArgumentType      CommandArgumentType         `json:"command_argument_type,omitempty"`
@@ -384,9 +403,15 @@ type FlowNodeData struct {
 	RoleTarget string    `json:"role_target,omitempty"`
 	RoleData   *RoleData `json:"role_data,omitempty"`
 
-	// Roblox User Get
+	// Roblox User Get, and the user of the Roblox group blocks
 	RobloxUserTarget string           `json:"roblox_user_target,omitempty"`
 	RobloxLookupMode RobloxLookupType `json:"roblox_lookup_mode,omitempty"`
+
+	// Roblox Group Member Get, Role Edit, Join Request Respond
+	RobloxGroupID           string                  `json:"roblox_group_id,omitempty"`
+	RobloxGroupRole         string                  `json:"roblox_group_role,omitempty"`
+	RobloxGroupRoleMode     RobloxGroupRoleMode     `json:"roblox_group_role_mode,omitempty"`
+	RobloxJoinRequestAction RobloxJoinRequestAction `json:"roblox_join_request_action,omitempty"`
 
 	// Variable Set, Delete
 	VariableID        string                     `json:"variable_id,omitempty"`
@@ -462,6 +487,9 @@ type FlowNodeData struct {
 
 	// Expression Evaluate
 	Expression string `json:"expression,omitempty"`
+
+	// Run JavaScript
+	JavaScriptData *JavaScriptData `json:"javascript_data,omitempty"`
 
 	// Value Lookup
 	LookupValue      string         `json:"lookup_value,omitempty"`
@@ -613,11 +641,20 @@ func (d FlowNodeData) Validate(nodeType FlowNodeType) error {
 		// Command Entry
 		validation.Field(&d.Name, validation.When(nodeType == FlowNodeTypeEntryCommand,
 			validation.Required,
+			notBlank,
 			validation.Length(1, 32),
-			validation.Match(commandNameRe).
-				Error("must be lowercase without special characters and up to two spaces"),
+			validation.When(
+				d.CommandType.Discord() == discord.ChatInputCommand,
+				validation.Match(commandNameRe).
+					Error("must be lowercase without special characters and up to two spaces"),
+			),
 		)),
-		validation.Field(&d.Description, validation.When(nodeType == FlowNodeTypeEntryCommand,
+		validation.Field(&d.CommandType, validation.When(nodeType == FlowNodeTypeEntryCommand,
+			validation.In("", CommandTypeChatInput, CommandTypeUser, CommandTypeMessage),
+		)),
+		validation.Field(&d.Description, validation.When(
+			nodeType == FlowNodeTypeEntryCommand &&
+				d.CommandType.Discord() == discord.ChatInputCommand,
 			validation.Required,
 			notBlank,
 			validation.Length(1, 100),
@@ -705,6 +742,12 @@ func (d FlowNodeData) Validate(nodeType FlowNodeType) error {
 			validation.Required,
 		)),
 
+		// Run JavaScript
+		validation.Field(&d.JavaScriptData, validation.When(
+			nodeType == FlowNodeTypeActionJavaScriptRun,
+			validation.Required,
+		)),
+
 		// Expression Evaluate
 		// Bounded for every node type rather than just entry nodes: an oversized
 		// expression is a resource-exhaustion risk at execution time, not just a
@@ -728,12 +771,7 @@ func (d FlowNodeData) Validate(nodeType FlowNodeType) error {
 		// An empty sort means VariableListSortValueDesc, the default the
 		// editor shows.
 		validation.Field(&d.VariableSort, validation.When(nodeType == FlowNodeTypeActionVariableList,
-			validation.In(
-				provider.VariableListSortValueDesc,
-				provider.VariableListSortValueAsc,
-				provider.VariableListSortUpdatedDesc,
-				provider.VariableListSortUpdatedAsc,
-			),
+			validation.In(anys(provider.VariableListSorts)...),
 		)),
 
 		// Command Cooldown
@@ -849,6 +887,27 @@ const (
 	CommandContextTypePrivateChannel CommandContextType = "private_channel"
 )
 
+type CommandType string
+
+const (
+	CommandTypeChatInput CommandType = "chat_input"
+	CommandTypeUser      CommandType = "user"
+	CommandTypeMessage   CommandType = "message"
+)
+
+// Discord is the type of the command in Discord. Commands saved before there
+// were types have none and are slash commands.
+func (t CommandType) Discord() discord.CommandType {
+	switch t {
+	case CommandTypeUser:
+		return discord.UserCommand
+	case CommandTypeMessage:
+		return discord.MessageCommand
+	default:
+		return discord.ChatInputCommand
+	}
+}
+
 type CommandDisabledIntegrationType string
 
 const (
@@ -870,7 +929,8 @@ const (
 	EventFilterTypeMessageMentionsBot   EventFilterTarget = "message_mentions_bot"
 	EventFilterTypeUserIsBot            EventFilterTarget = "user_is_bot"
 	// The action of an audit log entry, see auditlog.Action.
-	EventFilterTypeAuditLogAction EventFilterTarget = "audit_log_action"
+	EventFilterTypeAuditLogAction   EventFilterTarget = "audit_log_action"
+	EventFilterTypeVoiceStateAction EventFilterTarget = "voice_state_action"
 )
 
 type RandomMode string
@@ -889,6 +949,22 @@ type RobloxLookupType string
 const (
 	RobloxLookupTypeID   RobloxLookupType = "id"
 	RobloxLookupTypeName RobloxLookupType = "username"
+)
+
+type RobloxGroupRoleMode string
+
+const (
+	// The member has only this role afterwards.
+	RobloxGroupRoleModeSet    RobloxGroupRoleMode = "set"
+	RobloxGroupRoleModeAdd    RobloxGroupRoleMode = "add"
+	RobloxGroupRoleModeRemove RobloxGroupRoleMode = "remove"
+)
+
+type RobloxJoinRequestAction string
+
+const (
+	RobloxJoinRequestActionAccept  RobloxJoinRequestAction = "accept"
+	RobloxJoinRequestActionDecline RobloxJoinRequestAction = "decline"
 )
 
 // maxLookupRows is the most rows a lookup block can have. Every row's key is
@@ -934,9 +1010,20 @@ type ServerProfileData struct {
 	AvatarURL *string `json:"avatar_url,omitempty"`
 	BannerURL *string `json:"banner_url,omitempty"`
 	Bio       *string `json:"bio,omitempty"`
+	// NameStyle changes the style of the bot's name, the bot's own has none.
+	NameStyle *NameStyleData `json:"name_style,omitempty"`
 	// Reset resets the whole profile to the bot's own, the other fields are
 	// ignored then.
 	Reset bool `json:"reset,omitempty"`
+}
+
+type NameStyleData struct {
+	// Font and Effect are keys of provider.NameStyleFonts and
+	// provider.NameStyleEffects.
+	Font   string `json:"font"`
+	Effect string `json:"effect"`
+	// Colors are hex colors like #5865F2 or numbers, with placeholders.
+	Colors []string `json:"colors"`
 }
 
 type ChannelData struct {
@@ -1307,6 +1394,105 @@ type AIDecisionData struct {
 	Levels []string `json:"levels,omitempty"`
 }
 
+type JavaScriptData struct {
+	// The body of a function with the parameter input. Placeholders in it
+	// aren't evaluated, they would let anyone who can put text in them run
+	// code. Values go in through inputs.
+	Code   string            `json:"code,omitempty"`
+	Inputs []JavaScriptInput `json:"inputs,omitempty"`
+	// The stored variables the code can use, by the names it uses for them.
+	Variables []JavaScriptVariable `json:"variables,omitempty"`
+}
+
+// MaxJavaScriptVariables is how many stored variables a Run JavaScript block
+// can use.
+const MaxJavaScriptVariables = 10
+
+// JavaScriptVariable is a stored variable the code uses as name, like
+// variables.get({name: "xp"}). The name stays the same when the variable is
+// renamed, or gets another ID when a template is added.
+type JavaScriptVariable struct {
+	Name       string `json:"name"`
+	VariableID string `json:"variable_id,omitempty"`
+}
+
+type JavaScriptInput struct {
+	// Property of input in the code.
+	Name  string `json:"name"`
+	Value string `json:"value,omitempty"`
+}
+
+func (d JavaScriptData) Validate() error {
+	return validation.ValidateStruct(&d,
+		validation.Field(&d.Code, validation.Required, validation.Length(1, js.MaxCodeLength)),
+		validation.Field(&d.Inputs, validation.Length(0, js.MaxInputs), validation.By(func(value any) error {
+			names := map[string]bool{}
+			for _, input := range value.([]JavaScriptInput) {
+				if !ParameterKeyPattern.MatchString(input.Name) || len(input.Name) > 32 {
+					return fmt.Errorf("input name %q must start with a letter or _ and have up to 32 letters, digits and _", input.Name)
+				}
+				if names[input.Name] {
+					return fmt.Errorf("input name %q is used twice", input.Name)
+				}
+				names[input.Name] = true
+			}
+			return nil
+		})),
+		validation.Field(&d.Variables, validation.Length(0, MaxJavaScriptVariables), validation.By(func(value any) error {
+			names := map[string]bool{}
+			for _, v := range value.([]JavaScriptVariable) {
+				if !ParameterKeyPattern.MatchString(v.Name) || len(v.Name) > 32 {
+					return fmt.Errorf("variable name %q must start with a letter or _ and have up to 32 letters, digits and _", v.Name)
+				}
+				if names[v.Name] {
+					return fmt.Errorf("variable name %q is used twice", v.Name)
+				}
+				names[v.Name] = true
+			}
+			return nil
+		})),
+	)
+}
+
+// VariableIDs are the IDs of the stored variables the block uses: its
+// variable_id, and those of a Run JavaScript block's variables.
+func (d FlowNodeData) VariableIDs() []string {
+	var ids []string
+	if d.VariableID != "" {
+		ids = append(ids, d.VariableID)
+	}
+	if d.JavaScriptData != nil {
+		for _, v := range d.JavaScriptData.Variables {
+			if v.VariableID != "" {
+				ids = append(ids, v.VariableID)
+			}
+		}
+	}
+	return ids
+}
+
+// RemapVariableIDs replaces each ID of VariableIDs with what f returns for
+// it, like when a template's variables get the IDs of the app's.
+func (d *FlowNodeData) RemapVariableIDs(f func(id string) (string, error)) error {
+	var err error
+	if d.VariableID != "" {
+		if d.VariableID, err = f(d.VariableID); err != nil {
+			return err
+		}
+	}
+	if d.JavaScriptData != nil {
+		for i, v := range d.JavaScriptData.Variables {
+			if v.VariableID == "" {
+				continue
+			}
+			if d.JavaScriptData.Variables[i].VariableID, err = f(v.VariableID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 type AITranslateData struct {
 	Text string `json:"text,omitempty"`
 	// A code of aiTranslateLanguages, or a placeholder that becomes one.
@@ -1576,4 +1762,13 @@ func channelTypeSupportsRateLimitPerUser(t discord.ChannelType) bool {
 // limit for the given channel type.
 func channelTypeSupportsVoice(t discord.ChannelType) bool {
 	return t == discord.GuildVoice || t == discord.GuildStageVoice
+}
+
+// anys is values for validation.In.
+func anys[T any](values []T) []any {
+	res := make([]any, len(values))
+	for i, v := range values {
+		res[i] = v
+	}
+	return res
 }

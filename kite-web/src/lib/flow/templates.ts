@@ -3,6 +3,7 @@ import {
   ArrowUp10Icon,
   BotOffIcon,
   BrainCircuitIcon,
+  ChevronsUpIcon,
   CoinsIcon,
   GavelIcon,
   GiftIcon,
@@ -49,6 +50,7 @@ export const templateIcons: Record<string, LucideIcon> = {
   languages: LanguagesIcon,
   trophy: TrophyIcon,
   coins: CoinsIcon,
+  "chevrons-up": ChevronsUpIcon,
 };
 
 // lucideName is the name of the Lucide component of the icon, like
@@ -498,10 +500,15 @@ export type Template = {
   listed: boolean;
   // What changed in the last versions, newest first.
   versionNotes: { version: number; notes: string }[];
-  // How many apps added it, unknown for the official ones from the files.
+  // How many apps added it, not counting its author's, unknown for the
+  // official ones from the files.
   installs?: number;
+  // How many of them ran a flow in the last 30 days.
+  activeInstalls?: number;
   // How many users starred it, unknown for the official ones from the files.
   stars?: number;
+  // Whether Kite picked it, which only templates of users can be.
+  staffPick?: boolean;
   // When it was made, unknown for the official ones from the files.
   createdAt?: string;
   setup?: string[];
@@ -615,6 +622,7 @@ export function templateFromBundle(bundle: Bundle): Template | undefined {
     return {
       ...loadTemplate(source, { kind: "kite" }, true),
       installs: bundle.install_count,
+      activeInstalls: bundle.active_install_count,
       stars: bundle.star_count,
       createdAt: bundle.created_at,
     };
@@ -637,7 +645,9 @@ export function templateFromBundle(bundle: Bundle): Template | undefined {
       bundle.listed
     ),
     installs: bundle.install_count,
+    activeInstalls: bundle.active_install_count,
     stars: bundle.star_count,
+    staffPick: bundle.staff_pick,
     createdAt: bundle.created_at,
   };
 }

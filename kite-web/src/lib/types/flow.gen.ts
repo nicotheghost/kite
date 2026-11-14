@@ -87,6 +87,7 @@ export const FlowNodeTypeActionRoleGet: FlowNodeType = "action_role_get";
 export const FlowNodeTypeActionGuildGet: FlowNodeType = "action_guild_get";
 export const FlowNodeTypeActionMessageGet: FlowNodeType = "action_message_get";
 export const FlowNodeTypeActionRobloxUserGet: FlowNodeType = "action_roblox_user_get";
+export const FlowNodeTypeActionBloxlinkUserGet: FlowNodeType = "action_bloxlink_user_get";
 export const FlowNodeTypeActionHTTPRequest: FlowNodeType = "action_http_request";
 export const FlowNodeTypeActionDiscordAPIRequest: FlowNodeType = "action_discord_api_request";
 export const FlowNodeTypeActionAIChatCompletion: FlowNodeType = "action_ai_chat_completion";
@@ -94,6 +95,7 @@ export const FlowNodeTypeActionAISearchWeb: FlowNodeType = "action_ai_web_search
 export const FlowNodeTypeActionAIScore: FlowNodeType = "action_ai_score";
 export const FlowNodeTypeActionAITranslate: FlowNodeType = "action_ai_translate";
 export const FlowNodeTypeActionExpressionEvaluate: FlowNodeType = "action_expression_evaluate";
+export const FlowNodeTypeActionJavaScriptRun: FlowNodeType = "action_javascript_run";
 export const FlowNodeTypeActionRandomGenerate: FlowNodeType = "action_random_generate";
 export const FlowNodeTypeActionValueLookup: FlowNodeType = "action_value_lookup";
 export const FlowNodeTypeActionLog: FlowNodeType = "action_log";
@@ -132,6 +134,12 @@ export const FlowNodeTypeControlConditionItemAIChoice: FlowNodeType = "control_c
 export const FlowNodeTypeControlAICheck: FlowNodeType = "control_ai_check";
 export const FlowNodeTypeSuspendResponseModal: FlowNodeType = "suspend_response_modal";
 /**
+ * Roblox group blocks
+ */
+export const FlowNodeTypeActionRobloxGroupMemberGet: FlowNodeType = "action_roblox_group_member_get";
+export const FlowNodeTypeActionRobloxGroupMemberRoleEdit: FlowNodeType = "action_roblox_group_member_role_edit";
+export const FlowNodeTypeActionRobloxGroupJoinRequestRespond: FlowNodeType = "action_roblox_group_join_request_respond";
+/**
  * EventTypeScheduleCron is the event type of listeners that run on a cron
  * schedule instead of reacting to Discord events.
  */
@@ -167,6 +175,7 @@ export interface FlowNodeData {
   /**
    * Command Entry
    */
+  command_type?: CommandType;
   command_argument_order?: string[];
   /**
    * Command Argument
@@ -264,10 +273,17 @@ export interface FlowNodeData {
   role_target?: string;
   role_data?: RoleData;
   /**
-   * Roblox User Get
+   * Roblox User Get, and the user of the Roblox group blocks
    */
   roblox_user_target?: string;
   roblox_lookup_mode?: RobloxLookupType;
+  /**
+   * Roblox Group Member Get, Role Edit, Join Request Respond
+   */
+  roblox_group_id?: string;
+  roblox_group_role?: string;
+  roblox_group_role_mode?: RobloxGroupRoleMode;
+  roblox_join_request_action?: RobloxJoinRequestAction;
   /**
    * Variable Set, Delete
    */
@@ -358,6 +374,10 @@ export interface FlowNodeData {
    */
   expression?: string;
   /**
+   * Run JavaScript
+   */
+  javascript_data?: JavaScriptData;
+  /**
    * Value Lookup
    */
   lookup_value?: string;
@@ -424,6 +444,10 @@ export type CommandContextType = string;
 export const CommandContextTypeGuild: CommandContextType = "guild";
 export const CommandContextTypeBotDM: CommandContextType = "bot_dm";
 export const CommandContextTypePrivateChannel: CommandContextType = "private_channel";
+export type CommandType = string;
+export const CommandTypeChatInput: CommandType = "chat_input";
+export const CommandTypeUser: CommandType = "user";
+export const CommandTypeMessage: CommandType = "message";
 export type CommandDisabledIntegrationType = string;
 export const CommandDisabledIntegrationTypeGuildInstall: CommandDisabledIntegrationType = "guild_install";
 export const CommandDisabledIntegrationTypeUserInstall: CommandDisabledIntegrationType = "user_install";
@@ -442,6 +466,7 @@ export const EventFilterTypeUserIsBot: EventFilterTarget = "user_is_bot";
  * The action of an audit log entry, see auditlog.Action.
  */
 export const EventFilterTypeAuditLogAction: EventFilterTarget = "audit_log_action";
+export const EventFilterTypeVoiceStateAction: EventFilterTarget = "voice_state_action";
 export type RandomMode = string;
 /**
  * Empty is the number mode too, as blocks from before the item mode have
@@ -456,6 +481,16 @@ export const RandomModeItems: RandomMode = "items";
 export type RobloxLookupType = string;
 export const RobloxLookupTypeID: RobloxLookupType = "id";
 export const RobloxLookupTypeName: RobloxLookupType = "username";
+export type RobloxGroupRoleMode = string;
+/**
+ * The member has only this role afterwards.
+ */
+export const RobloxGroupRoleModeSet: RobloxGroupRoleMode = "set";
+export const RobloxGroupRoleModeAdd: RobloxGroupRoleMode = "add";
+export const RobloxGroupRoleModeRemove: RobloxGroupRoleMode = "remove";
+export type RobloxJoinRequestAction = string;
+export const RobloxJoinRequestActionAccept: RobloxJoinRequestAction = "accept";
+export const RobloxJoinRequestActionDecline: RobloxJoinRequestAction = "decline";
 /**
  * LookupRow is a row of a lookup block's table, mapping a key to the value
  * the block returns when the key matches.
@@ -485,10 +520,26 @@ export interface ServerProfileData {
   banner_url?: string;
   bio?: string;
   /**
+   * NameStyle changes the style of the bot's name, the bot's own has none.
+   */
+  name_style?: NameStyleData;
+  /**
    * Reset resets the whole profile to the bot's own, the other fields are
    * ignored then.
    */
   reset?: boolean;
+}
+export interface NameStyleData {
+  /**
+   * Font and Effect are keys of provider.NameStyleFonts and
+   * provider.NameStyleEffects.
+   */
+  font: string;
+  effect: string;
+  /**
+   * Colors are hex colors like #5865F2 or numbers, with placeholders.
+   */
+  colors: string[];
 }
 export interface ChannelData {
   name?: string;
@@ -663,6 +714,40 @@ export interface AIDecisionData {
    */
   levels?: string[];
 }
+export interface JavaScriptData {
+  /**
+   * The body of a function with the parameter input. Placeholders in it
+   * aren't evaluated, they would let anyone who can put text in them run
+   * code. Values go in through inputs.
+   */
+  code?: string;
+  inputs?: JavaScriptInput[];
+  /**
+   * The stored variables the code can use, by the names it uses for them.
+   */
+  variables?: JavaScriptVariable[];
+}
+/**
+ * MaxJavaScriptVariables is how many stored variables a Run JavaScript block
+ * can use.
+ */
+export const MaxJavaScriptVariables = 10;
+/**
+ * JavaScriptVariable is a stored variable the code uses as name, like
+ * variables.get({name: "xp"}). The name stays the same when the variable is
+ * renamed, or gets another ID when a template is added.
+ */
+export interface JavaScriptVariable {
+  name: string;
+  variable_id?: string;
+}
+export interface JavaScriptInput {
+  /**
+   * Property of input in the code.
+   */
+  name: string;
+  value?: string;
+}
 export interface AITranslateData {
   text?: string;
   /**
@@ -696,6 +781,18 @@ export interface FlowEdge {
 
 //////////
 // source: modal.go
+
+
+//////////
+// source: operation_handlers.go
+
+
+//////////
+// source: operation_handlers_variables.go
+
+
+//////////
+// source: operations.go
 
 
 //////////

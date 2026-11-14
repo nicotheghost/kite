@@ -14,6 +14,8 @@ import InstalledBundleList from "@/components/app/InstalledBundleList";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import TemplateIcon from "@/components/app/TemplateIcon";
+import { activeInstallsTitle } from "@/components/app/TemplateListEntry";
 import env from "@/lib/env/client";
 import { useApps, useBundleInstalls, useUserBundles } from "@/lib/hooks/api";
 import { useAppId } from "@/lib/hooks/params";
@@ -184,7 +186,14 @@ function BundleEntry({ bundle }: { bundle: UserBundle }) {
         className="flex items-center gap-3 group min-w-0"
       >
         <div className="h-10 w-10 bg-primary/15 flex-none rounded-lg flex items-center justify-center self-start">
-          <PackageIcon className="h-5 w-5 text-primary" />
+          {bundle.page.icon ? (
+            <TemplateIcon
+              name={bundle.page.icon}
+              className="h-5 w-5 text-primary"
+            />
+          ) : (
+            <PackageIcon className="h-5 w-5 text-primary" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -201,7 +210,14 @@ function BundleEntry({ bundle }: { bundle: UserBundle }) {
           <div className="text-xs text-muted-foreground mt-1">
             Version {bundle.version} · {items} {items === 1 ? "item" : "items"}{" "}
             · Added to {formatNumber(bundle.install_count)}{" "}
-            {bundle.install_count === 1 ? "bot" : "bots"} · {source}
+            {bundle.install_count === 1 ? "bot" : "bots"}
+            {bundle.active_install_count > 0 && (
+              <span title={activeInstallsTitle}>
+                {" "}
+                · {formatNumber(bundle.active_install_count)} active
+              </span>
+            )}{" "}
+            · {source}
           </div>
           {details && (
             <div className="text-xs text-muted-foreground mt-1">

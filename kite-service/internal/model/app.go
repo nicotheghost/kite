@@ -53,6 +53,9 @@ type CommandsDeployError struct {
 	Message string `json:"message"`
 	// Command is the name of the root command it's about, if known.
 	Command string `json:"command,omitempty"`
+	// CommandType is "user" or "message" for context menu commands, empty for
+	// slash commands.
+	CommandType string `json:"command_type,omitempty"`
 }
 
 func (e *CommandsDeployError) Error() string {
@@ -155,7 +158,9 @@ func (r AppGatewayRequirements) NeedsGuildMembers() bool {
 	for _, t := range r.EventListenerTypes {
 		switch t {
 		case EventListenerTypeDiscordGuildMemberAdd,
-			EventListenerTypeDiscordGuildMemberRemove:
+			EventListenerTypeDiscordGuildMemberRemove,
+			// Boost removals are detected from GUILD_MEMBER_UPDATE.
+			EventListenerTypeDiscordGuildBoostRemove:
 			return true
 		}
 	}
@@ -197,7 +202,9 @@ func (r AppGatewayRequirements) NeedsGuildModeration() bool {
 
 // NeedsGuildVoiceStates reports whether the app consumes voice state events.
 func (r AppGatewayRequirements) NeedsGuildVoiceStates() bool {
-	return r.UsesVoice
+	return r.UsesVoice ||
+		slices.Contains(r.EventListenerTypes, EventListenerTypeDiscordVoiceStateUpdate) ||
+		slices.Contains(r.PluginEventTypes, "VOICE_STATE_UPDATE")
 }
 
 // AppDiscordStatus holds the statuses an app can show. ActiveID picks the one
@@ -297,6 +304,8 @@ type AppEntity struct {
 	ID   string
 	Type AppEntityType
 	Name string
+	// Enabled is always true for messages and variables.
+	Enabled bool
 }
 
 type AppEntityType string

@@ -66,6 +66,14 @@ func NewEventListener(
 	return res, nil
 }
 
+// entityLinks attributes runs of the listener to it, and to its source.
+func (l *EventListener) entityLinks() entityLinks {
+	return entityLinks{
+		EventListenerID: null.NewString(l.listener.ID, true),
+		EventSource:     l.listener.Source,
+	}
+}
+
 func (l *EventListener) HandleScheduledRun(session *state.State, occurrence time.Time) {
 	l.env.executeFlowEvent(
 		context.Background(),
@@ -73,18 +81,12 @@ func (l *EventListener) HandleScheduledRun(session *state.State, occurrence time
 		l.flow,
 		session,
 		&schedule.Event{Time: occurrence},
-		entityLinks{
-			EventListenerID: null.NewString(l.listener.ID, true),
-		},
+		l.entityLinks(),
 		nil,
 	)
 }
 
 func (l *EventListener) HandleEvent(appID string, session *state.State, event gateway.Event) {
-	links := entityLinks{
-		EventListenerID: null.NewString(l.listener.ID, true),
-	}
-
 	var botID discord.UserID
 	if session != nil {
 		botID = session.Ready().User.ID
@@ -101,7 +103,7 @@ func (l *EventListener) HandleEvent(appID string, session *state.State, event ga
 		l.flow,
 		session,
 		event,
-		links,
+		l.entityLinks(),
 		nil,
 	)
 }
@@ -148,6 +150,10 @@ func (l *EventListener) shouldHandleEvent(e ws.Event, botID discord.UserID) bool
 	case *gateway.GuildAuditLogEntryCreateEvent:
 		// Ignore the app's own actions, or a flow that logs channel updates
 		// by editing a channel would trigger itself.
+		return d.UserID != botID
+	case *gateway.VoiceStateUpdateEvent:
+		return d.UserID != botID
+	case *guildevent.VoiceStateUpdate:
 		return d.UserID != botID
 	// Kite's own events derived from Discord's. Discord's MESSAGE_DELETE
 	// never gets here, see listenersForEvent.

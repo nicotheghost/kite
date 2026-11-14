@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"net/url"
 	"slices"
 
 	"github.com/kitecloud/kite/kite-service/pkg/thing"
@@ -15,90 +16,81 @@ func init() {
 	})
 }
 
+// executeActionHTTPRequest is a preset of the http.request operation, see
+// newHTTPRequest, with its settings as templates that can use the app's
+// secrets.
 func executeActionHTTPRequest(n *CompiledFlowNode, ctx *FlowContext) error {
-	if n.Data.HTTPRequestData == nil {
+	data := n.Data.HTTPRequestData
+	if data == nil {
 		return &FlowError{
 			Code:    FlowNodeErrorUnknown,
 			Message: "http_request_data is nil",
 		}
 	}
 
-	method := n.Data.HTTPRequestData.Method
-	if method == "" {
-		method = "GET"
+	secrets, err := newFlowSecrets(ctx, data.templates()...)
+	if err != nil {
+		return err
+	}
+	req, err := buildHTTPRequest(ctx, data, secrets)
+	if err != nil {
+		return err
 	}
 
-	templates := []string{n.Data.HTTPRequestData.URL, string(n.Data.HTTPRequestData.BodyJSON)}
-	for _, kv := range slices.Concat(n.Data.HTTPRequestData.Headers, n.Data.HTTPRequestData.Query) {
+	res, err := sendHTTP(ctx, req, secrets, thing.MaxBodySize)
+	if err != nil {
+		return err
+	}
+	ctx.StoreNodeResult(n, thing.NewHTTPResponse(res))
+	return n.ExecuteChildren(ctx)
+}
+
+// templates are the settings of the request that can have placeholders.
+func (data *HTTPRequestData) templates() []string {
+	templates := []string{data.URL, string(data.BodyJSON)}
+	for _, kv := range slices.Concat(data.Headers, data.Query) {
 		templates = append(templates, kv.Value)
 	}
-	secrets, err := newFlowSecrets(ctx, templates...)
+	return templates
+}
+
+// buildHTTPRequest builds the request of a Send API Request block.
+func buildHTTPRequest(ctx *FlowContext, data *HTTPRequestData, secrets *flowSecrets) (*http.Request, error) {
+	rawURL, err := secrets.EvalTemplate(ctx, data.URL)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	query := url.Values{}
+	for _, kv := range data.Query {
+		value, err := secrets.EvalTemplate(ctx, kv.Value)
+		if err != nil {
+			return nil, err
+		}
+		query.Add(kv.Key, value.String())
 	}
 
-	url, err := secrets.EvalTemplate(ctx, n.Data.HTTPRequestData.URL)
+	var body io.Reader
+	if data.BodyJSON != nil {
+		value, err := secrets.EvalJSONTemplate(ctx, data.BodyJSON)
+		if err != nil {
+			return nil, err
+		}
+		body = bytes.NewReader(value)
+	}
+
+	req, err := newHTTPRequest(ctx, data.Method, rawURL.String(), query, body)
 	if err != nil {
-		return err
+		return nil, secrets.Redact(err)
 	}
-
-	// Bound to the flow context so the execution deadline and an explicit
-	// Cancel both abort the request. With a background request a slow or
-	// non-responding host pins the goroutine and its connection past the
-	// end of the flow, in a pool shared with the Discord API client.
-	req, err := http.NewRequestWithContext(ctx, method, url.String(), nil)
-	if err != nil {
-		return secrets.Redact(err)
-	}
-
-	for _, header := range n.Data.HTTPRequestData.Headers {
-		value, err := secrets.EvalTemplate(ctx, header.Value)
+	for _, kv := range data.Headers {
+		value, err := secrets.EvalTemplate(ctx, kv.Value)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		req.Header.Add(header.Key, value.String())
+		req.Header.Add(kv.Key, value.String())
 	}
-
-	query := req.URL.Query()
-	for _, queryParam := range n.Data.HTTPRequestData.Query {
-		value, err := secrets.EvalTemplate(ctx, queryParam.Value)
-		if err != nil {
-			return err
-		}
-
-		query.Add(queryParam.Key, value.String())
-	}
-	req.URL.RawQuery = query.Encode()
-
-	if n.Data.HTTPRequestData.BodyJSON != nil {
-		// This can potentially break the JSON if an expression returns a string containing double quotes
-		// We should probably escape the expression results or only run the eval engine on the actual JSON values
-		body, err := secrets.EvalTemplate(ctx, string(n.Data.HTTPRequestData.BodyJSON))
-		if err != nil {
-			return err
-		}
-
+	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
-		req.Body = io.NopCloser(bytes.NewReader([]byte(body.String())))
 	}
-
-	resp, err := ctx.HTTP.HTTPRequest(ctx, req)
-	if err != nil {
-		return secrets.Redact(err)
-	}
-
-	// Closed here rather than deferred: the body is fully consumed by
-	// NewFromHTTPResponse, and a defer would hold the connection for the
-	// whole child subtree. NewFromHTTPResponse also returns early without
-	// reading when Content-Length is over its cap, so this has to run on
-	// the error path too.
-	result, err := thing.NewFromHTTPResponse(resp)
-	resp.Body.Close()
-	if err != nil {
-		return err
-	}
-
-	ctx.StoreNodeResult(n, result)
-	return n.ExecuteChildren(ctx)
+	return req, nil
 }

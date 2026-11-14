@@ -14,6 +14,7 @@ import (
 	"github.com/diamondburned/arikawa/v3/gateway"
 	"github.com/diamondburned/arikawa/v3/state"
 	"github.com/diamondburned/arikawa/v3/utils/json/option"
+	"github.com/kitecloud/kite/kite-service/internal/core/command"
 	"github.com/kitecloud/kite/kite-service/internal/metrics"
 	"github.com/kitecloud/kite/kite-service/internal/model"
 	"github.com/kitecloud/kite/kite-service/internal/store"
@@ -38,7 +39,7 @@ type App struct {
 	// than patched, so renames and type changes can't leave stale entries,
 	// and always replaced rather than mutated in place so readers can take a
 	// reference and drop the lock before dispatching.
-	commandsByName  map[string]*Command
+	commandsByKey   map[command.Key]*Command
 	listenersByType map[model.EventListenerType][]*EventListener
 	scheduled       []*EventListener
 	// TODO?: Cache messages (LRUCache<*MessageInstance>)
@@ -54,7 +55,7 @@ func NewApp(
 		commands:        make(map[string]*Command),
 		listeners:       make(map[string]*EventListener),
 		pluginInstances: make(map[string]*pluginInstance),
-		commandsByName:  make(map[string]*Command),
+		commandsByKey:   make(map[command.Key]*Command),
 		listenersByType: make(map[model.EventListenerType][]*EventListener),
 	}
 }
@@ -62,11 +63,11 @@ func NewApp(
 // rebuildCommandIndex regenerates the name lookup from a.commands. Callers
 // must hold the write lock.
 func (a *App) rebuildCommandIndex() {
-	index := make(map[string]*Command, len(a.commands))
-	for _, command := range a.commands {
-		index[command.cmd.Name] = command
+	index := make(map[command.Key]*Command, len(a.commands))
+	for _, cmd := range a.commands {
+		index[command.ModelKey(cmd.cmd)] = cmd
 	}
-	a.commandsByName = index
+	a.commandsByKey = index
 }
 
 // rebuildListenerIndex regenerates the event type lookup of Discord listeners
@@ -269,11 +270,11 @@ func (a *App) HandleEvent(appID string, session *state.State, event gateway.Even
 
 		switch d := e.Data.(type) {
 		case *discord.CommandInteraction:
-			fullName := getFullCommandName(d)
+			key := interactionCommandKey(d)
 
 			lockStart := time.Now()
 			a.RLock()
-			command := a.commandsByName[fullName]
+			command := a.commandsByKey[key]
 			a.RUnlock()
 
 			lockDiff := time.Since(lockStart)
@@ -354,7 +355,7 @@ func (a *App) HandleEvent(appID string, session *state.State, event gateway.Even
 // so link previews and pins don't run Message Update listeners.
 func (a *App) listenersForEvent(event gateway.Event) []*EventListener {
 	switch event.(type) {
-	case *gateway.MessageDeleteEvent, *gateway.MessageUpdateEvent:
+	case *gateway.MessageDeleteEvent, *gateway.MessageUpdateEvent, *gateway.VoiceStateUpdateEvent:
 		return nil
 	}
 
@@ -448,7 +449,7 @@ func (a *App) resumeFlow(
 		node,
 		session,
 		event,
-		entityLinksFromResumePoint(resumePoint),
+		a.entityLinksFromResumePoint(resumePoint),
 		&resumePoint.FlowState,
 	)
 	return true
@@ -525,7 +526,7 @@ func (a *App) resumeFlowAfterSleep(resumePoint *model.ResumePoint, session *stat
 		node,
 		session,
 		event,
-		entityLinksFromResumePoint(resumePoint),
+		a.entityLinksFromResumePoint(resumePoint),
 		&state,
 	)
 }
@@ -614,8 +615,20 @@ func (a *App) resumeFlowOrRespondExpired(resumePointID string, session *state.St
 // entityLinksFromResumePoint recovers the links the flow was running with when
 // it suspended. CreateResumePoint stores them verbatim, so attribution of logs
 // and usage survives the suspend rather than being guessed on the way back in.
-func entityLinksFromResumePoint(resumePoint *model.ResumePoint) entityLinks {
+// Only the event source isn't stored, so it's taken from the loaded listener.
+func (a *App) entityLinksFromResumePoint(resumePoint *model.ResumePoint) entityLinks {
+	var eventSource model.EventSource
+	if resumePoint.EventListenerID.Valid {
+		a.RLock()
+		listener, ok := a.listeners[resumePoint.EventListenerID.String]
+		a.RUnlock()
+		if ok {
+			eventSource = listener.listener.Source
+		}
+	}
+
 	return entityLinks{
+		EventSource:       eventSource,
 		CommandID:         resumePoint.CommandID,
 		EventListenerID:   resumePoint.EventListenerID,
 		MessageID:         resumePoint.MessageID,
@@ -729,6 +742,15 @@ func (a *App) touch(lastUsedAt time.Time, update func(ctx context.Context, now t
 			)
 		}
 	}()
+}
+
+// interactionCommandKey is the command the interaction is for. Only slash
+// commands have subcommands, which are part of their name.
+func interactionCommandKey(d *discord.CommandInteraction) command.Key {
+	if d.Type == discord.UserCommand || d.Type == discord.MessageCommand {
+		return command.NewKey(d.Type, d.Name)
+	}
+	return command.NewKey(discord.ChatInputCommand, getFullCommandName(d))
 }
 
 func getFullCommandName(d *discord.CommandInteraction) string {

@@ -194,6 +194,53 @@ func TestFlowTestCommandArguments(t *testing.T) {
 	}
 }
 
+func contextCommandFlow(commandType, content string) string {
+	return `{
+		"nodes": [
+			{"id": "entry", "type": "entry_command", "data": {"name": "Show Info", "command_type": "` + commandType + `"}},
+			{"id": "reply", "type": "action_response_create", "data": {"message_data": {"content": "` + content + `"}}}
+		],
+		"edges": [{"id": "1", "source": "entry", "target": "reply"}]
+	}`
+}
+
+func TestFlowTestContextCommands(t *testing.T) {
+	tests := []struct {
+		name    string
+		flow    string
+		options map[string]json.RawMessage
+		want    string
+	}{
+		{
+			name: "user",
+			flow: contextCommandFlow("user", "{{interaction.command.target_user.username}}"),
+			want: "tester",
+		},
+		{
+			name:    "user target",
+			flow:    contextCommandFlow("user", "{{interaction.command.target_user.username}}"),
+			options: map[string]json.RawMessage{"target": json.RawMessage(`"` + testRunBot.String() + `"`)},
+			want:    "kite",
+		},
+		{
+			name: "message",
+			flow: contextCommandFlow("message", "{{interaction.command.target_message.content}} by {{interaction.command.target_message.author.username}}"),
+			want: "Test message by tester",
+		},
+	}
+
+	for _, test := range tests {
+		res := runTest(t, Test{Kind: KindCommand, Flow: testFlow(t, test.flow), Options: test.options})
+		exec := res.Executions[0]
+		if exec.Error != "" || len(exec.Notes) > 0 {
+			t.Fatalf("%s: execution failed: %+v", test.name, exec)
+		}
+		if got := responseContent(t, findEffect(t, exec, "respond")); got != test.want {
+			t.Errorf("%s: response = %q, want %q", test.name, got, test.want)
+		}
+	}
+}
+
 // A click on a button the flow sent continues the flow, and a role the bot
 // can't assign is warned about.
 func TestFlowTestClickButton(t *testing.T) {
@@ -399,6 +446,32 @@ func TestFlowTestVariables(t *testing.T) {
 	findEffect(t, exec, "set_variable")
 	if got := responseContent(t, findEffect(t, exec, "respond")); got != "5" {
 		t.Errorf("response = %q", got)
+	}
+}
+
+func TestFlowTestVariableSizeLimit(t *testing.T) {
+	r := NewRunner(engine.Env{
+		VariableStore: &fakeVariableStore{variables: []*model.Variable{{ID: "log"}}},
+	}, testRunSessions{session: testRunState(t)})
+	test := Test{
+		Kind:   KindCommand,
+		UserID: testRunUser.String(),
+		Flow: testFlow(t, `{
+			"nodes": [
+				{"id": "entry", "type": "entry_command", "data": {"name": "log", "description": "Log"}},
+				{"id": "add", "type": "action_variable_set", "data": {"variable_id": "log", "variable_operation": "append", "variable_value": "`+strings.Repeat("b", 2048)+`"}}
+			],
+			"edges": [{"id": "1", "source": "entry", "target": "add"}]
+		}`),
+		Variables: []Variable{{VariableID: "log", Value: thing.NewString(strings.Repeat("a", 63<<10))}},
+	}
+
+	res, err := r.Run(context.Background(), "app", test)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Executions[0].Error; !strings.Contains(got, "larger than 64 KB") {
+		t.Errorf("error = %q", got)
 	}
 }
 

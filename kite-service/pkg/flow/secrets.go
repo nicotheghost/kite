@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -102,10 +103,8 @@ func newFlowSecrets(ctx *FlowContext, templates ...string) (*flowSecrets, error)
 	}
 
 	res.values = values
-	res.evalCtx = eval.Context{
-		Env:      maps.Clone(ctx.EvalCtx.Env),
-		Patchers: ctx.EvalCtx.Patchers,
-	}
+	// Only the env is cloned, so the flow's own env doesn't get the secrets.
+	res.evalCtx.Env = maps.Clone(ctx.EvalCtx.Env)
 	if res.evalCtx.Env == nil {
 		res.evalCtx.Env = eval.Env{}
 	}
@@ -123,6 +122,30 @@ func (s *flowSecrets) EvalTemplate(ctx *FlowContext, template string) (thing.Thi
 	return res, nil
 }
 
+// EvalJSONTemplate is like FlowContext.EvalJSONTemplate, but placeholders
+// always become text, as they did when the whole document was one template.
+func (s *flowSecrets) EvalJSONTemplate(ctx *FlowContext, raw json.RawMessage) ([]byte, error) {
+	res, err := evalJSONTemplate(raw, true, func(template string) (any, error) {
+		// A string that's a single placeholder would lose the spaces around
+		// it, so they are added back.
+		trimmed := strings.TrimSpace(template)
+		start := strings.Index(template, trimmed)
+		res, err := eval.EvalTemplate(ctx, trimmed, s.evalCtx)
+		if err != nil {
+			return nil, err
+		}
+		text := ""
+		if !res.IsNil() {
+			text = fmt.Sprintf("%v", res)
+		}
+		return template[:start] + text + template[start+len(trimmed):], nil
+	})
+	if err != nil {
+		return nil, s.Redact(fmt.Errorf("failed to evaluate template: %w", err))
+	}
+	return res, nil
+}
+
 // EvalTemplateRaw is like FlowContext.EvalTemplateRaw, for a setting that
 // has to be exactly the secret, like a signing key.
 func (s *flowSecrets) EvalTemplateRaw(ctx *FlowContext, template string) (thing.Thing, error) {
@@ -133,6 +156,23 @@ func (s *flowSecrets) EvalTemplateRaw(ctx *FlowContext, template string) (thing.
 		return thing.Null, s.Redact(fmt.Errorf("failed to evaluate template: %w", err))
 	}
 	return res, nil
+}
+
+// Fill replaces each placeholder of value that's just a secret, like
+// {{secrets.TOKEN}}, with its value, for text that isn't a template, like
+// the values of a request from code. Other placeholders stay as they are.
+func (s *flowSecrets) Fill(value string) string {
+	return placeholderRe.ReplaceAllStringFunc(value, func(m string) string {
+		inner := placeholderRe.FindStringSubmatch(m)[1]
+		if !plainSecretRe.MatchString(inner) {
+			return m
+		}
+		name := strings.TrimPrefix(strings.TrimSpace(inner), "secrets.")
+		if v, ok := s.values[name]; ok {
+			return v
+		}
+		return m
+	})
 }
 
 // Redact removes the values of the secrets from an error, which can contain
@@ -165,7 +205,9 @@ func (s *flowSecrets) redactString(msg string) string {
 		if len(value) < 4 {
 			continue
 		}
-		for _, form := range []string{value, url.QueryEscape(value), url.PathEscape(value)} {
+		// A URL's path is escaped like EscapedPath does, which keeps slashes.
+		forms := []string{value, url.QueryEscape(value), url.PathEscape(value), (&url.URL{Path: value}).EscapedPath()}
+		for _, form := range forms {
 			msg = strings.ReplaceAll(msg, form, "[secret]")
 		}
 	}

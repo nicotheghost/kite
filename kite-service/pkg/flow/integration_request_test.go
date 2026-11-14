@@ -12,6 +12,7 @@ import (
 
 	"github.com/kitecloud/kite/kite-service/pkg/eval"
 	"github.com/kitecloud/kite/kite-service/pkg/provider"
+	"github.com/kitecloud/kite/kite-service/pkg/thing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v4"
@@ -67,14 +68,18 @@ func withTestIntegration(t *testing.T, auth IntegrationAuth) {
 		Type:     "action_test_api_thing_get",
 		Credits:  intPtr(2),
 		Requires: []string{"test_api"},
-		Run:      blockRequest{Kind: "request", Integration: "test_api", Method: "GET", Path: "/things/{id}"},
+		Run:      blockRequest{Kind: "request", Integration: "test_api", Operation: "get_thing"},
 		Fields:   []blockField{{Name: "thing_id", In: "path", Target: "id", Type: "string"}},
 		Result: &struct {
 			Thing string `json:"thing"`
 			List  bool   `json:"list"`
 		}{},
 	}
+	operations["test_api"] = map[string]operation{
+		"get_thing": {Integration: "test_api", ID: "get_thing", Method: "GET", Path: "/things/{id}", PathParams: []apiParam{{Name: "id", Type: "string", Required: true}}},
+	}
 	t.Cleanup(func() {
+		delete(operations, "test_api")
 		delete(integrations, "test_api")
 		delete(blockDefinitions, "action_test_api_thing_get")
 	})
@@ -110,6 +115,7 @@ func executeIntegrationBlockWith(t *testing.T, nodeType FlowNodeType, data FlowN
 		&TestContextData{},
 		FlowProviders{
 			Discord:     &integrationTestDiscordProvider{},
+			Roblox:      &robloxTestProvider{users: map[int64]thing.RobloxUserValue{156: {ID: 156, Name: "builderman", DisplayName: "builderman"}}},
 			HTTP:        httpProvider,
 			Log:         &provider.MockLogProvider{},
 			Integration: integrationProvider,

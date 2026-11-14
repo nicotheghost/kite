@@ -2,11 +2,11 @@
 // pkg/flow/secrets.go.
 // Only placeholders reference secrets, and webhook.data.secrets.count, after
 // a dot, isn't one.
-const placeholderRe = /\{\{([\s\S]*?)\}\}/g;
+export const placeholderRe = /\{\{([\s\S]*?)\}\}/g;
 const plainSecretRe = /^\s*secrets\.[A-Za-z_][A-Za-z0-9_]*\s*$/;
 // Any use of the secrets, also like secrets?.NAME, which can read the ones
 // another placeholder of the template references.
-const secretMentionRe = /(?<![.\w])secrets\b/;
+export const secretMentionRe = /(?<![.\w])secrets\b/;
 
 // The names of the secrets a template references, like API_KEY in
 // {{secrets.API_KEY}}.
@@ -39,6 +39,16 @@ export function placeholderReferences(template: string, root: string) {
 
 // Whether every placeholder that references a secret is just the secret, like
 // {{secrets.TOKEN}}, and not an expression that could use a part of it.
+// onlySecretPlaceholders reports whether every placeholder of text is just a
+// secret, for code, where the service fills in nothing else. See
+// flowSecrets.Fill in the service.
+export function onlySecretPlaceholders(text: string) {
+  for (const [, placeholder] of text.matchAll(placeholderRe)) {
+    if (!plainSecretRe.test(placeholder)) return false;
+  }
+  return true;
+}
+
 export function onlyPlainSecrets(template: string) {
   for (const [, placeholder] of template.matchAll(placeholderRe)) {
     if (secretMentionRe.test(placeholder) && !plainSecretRe.test(placeholder)) {

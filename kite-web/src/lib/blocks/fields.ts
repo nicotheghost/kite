@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  numericOrPlaceholder,
   channelDataSchema,
   channelTargetSchema,
   guildTargetSchema,
@@ -56,6 +57,33 @@ export const channelDataSetting: BlockField = {
   schema: channelDataSchema,
 };
 
+// The user of the Roblox blocks, by ID or username, or a Roblox user result.
+export const robloxUserSettings: BlockField[] = [
+  {
+    name: "roblox_user_target",
+    schema: templated(
+      z.string(),
+      "Roblox ID or username of the user, depending on roblox_lookup_mode. A Roblox user result works too. Discord users and IDs don't work, use action_bloxlink_user_get to find the Roblox user of a member."
+    ),
+  },
+  {
+    name: "roblox_lookup_mode",
+    schema: z
+      .enum(["id", "username"])
+      .optional()
+      .describe(
+        "Whether roblox_user_target is an ID or a username. Defaults to id."
+      ),
+  },
+];
+
+export const robloxGroupIdSetting: BlockField = {
+  name: "roblox_group_id",
+  schema: numericOrPlaceholder(
+    "ID of the Roblox group, the number in the group's link."
+  ),
+};
+
 export const variableSettings: BlockField[] = [
   { name: "variable_id", schema: variableIdSchema },
   { name: "variable_scope", schema: variableScopeSchema },
@@ -63,16 +91,12 @@ export const variableSettings: BlockField[] = [
 
 // Where requests send the shared settings.
 const guildPath = {
-  in: "path",
   target: "guild_id",
-  type: "snowflake",
   fallback: "guild",
 } as const;
 
 const channelPath = {
-  in: "path",
   target: "channel_id",
-  type: "snowflake",
 } as const;
 
 export const guildTargetField: BlockField = {
@@ -87,23 +111,17 @@ export const channelTargetField: BlockField = {
 
 export const messageTargetField: BlockField = {
   ...messageTargetSetting,
-  in: "path",
   target: "message_id",
-  type: "snowflake",
 };
 
 export const userTargetField: BlockField = {
   ...userTargetSetting,
-  in: "path",
   target: "user_id",
-  type: "snowflake",
 };
 
 export const roleTargetField: BlockField = {
   ...roleTargetSetting,
-  in: "path",
   target: "role_id",
-  type: "snowflake",
 };
 
 // The same path parameters for blocks whose schema and editor input are
@@ -241,15 +259,12 @@ export function roleDataFields(edit: boolean): BlockField[] {
   return [
     {
       name: "name",
-      in: "body",
-      type: "string",
       label: "Name",
       description: describe("Name of the role.", "Defaults to 'new role'."),
       max_length: 100,
     },
     {
       name: "permissions",
-      in: "body",
       type: "string",
       label: "Permissions",
       description: describe(
@@ -260,7 +275,6 @@ export function roleDataFields(edit: boolean): BlockField[] {
     },
     {
       name: "color",
-      in: "body",
       type: "color",
       label: "Color",
       description: describe(
@@ -274,8 +288,6 @@ export function roleDataFields(edit: boolean): BlockField[] {
     },
     {
       name: "hoist",
-      in: "body",
-      type: "boolean",
       label: "Show Separately",
       description: describe(
         "Whether members with the role are shown separately in the member list."
@@ -283,10 +295,13 @@ export function roleDataFields(edit: boolean): BlockField[] {
     },
     {
       name: "mentionable",
-      in: "body",
-      type: "boolean",
       label: "Mentionable",
       description: describe("Whether everyone can mention the role."),
     },
   ];
+}
+
+// values are the values of select options, for z.enum.
+export function values<T extends string>(options: readonly { value: T }[]) {
+  return options.map((o) => o.value) as [T, ...T[]];
 }

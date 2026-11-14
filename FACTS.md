@@ -18,36 +18,38 @@ Situations that bring people here, from Google Search Console queries and OpenPa
 - Leaving another bot maker, mostly BotGhost. /alternatives/botghost is the most visited comparison page.
 - Asking ChatGPT how to make a bot. ChatGPT is the third biggest referrer after Google and Discord, with 1,916 sessions.
 Main alternatives:
-- Other no-code bot makers. BotGhost by far the most, from searches like "botghost alternative", then BotWiz and Bot Designer for Discord. Also inventor.bot (formerly inventor.gg), SCNX, FromFlow, and VibeBot. Each has a comparison page under /alternatives, with its limits and the date they were checked.
+- Other no-code bot makers. BotGhost by far the most, from searches like "botghost alternative", then BotWiz and Bot Designer for Discord. Also inventor.bot (formerly inventor.gg), SCNX, FromFlow, and VibeBot. Each has a comparison page under /alternatives, with its limits and the date they were checked. /alternatives itself is a roundup of the best free Discord bot makers, with Kite first.
 - Writing a bot in code and hosting it yourself. Some searches for free hosting ask for Python, like "free discord bot hosting python".
 Why pick this one: The free plan keeps your own bot online 24/7 on up to 100 servers, and you can replace Kite's status with your own for free. Kite is open source under AGPL-3.0. Don't claim it's the only or first bot maker to do anything.
 
 Features (feature | what it means for the user | free or paid):
 - Visual flow editor | build a command by connecting blocks, and see every step | free
-- Slash commands, buttons, select menus, and modals | members use the bot like any other Discord bot | free
+- Slash commands, User and Message commands, buttons, select menus, and modals | members use the bot like any other Discord bot | free
 - Event listeners for messages, new members, reactions, boosts, and more | the bot reacts without a command | free
 - Scheduled tasks | run a flow on a schedule | free, every 5 minutes at most, every minute on Kite Premium
 - Webhooks | start a flow from another website or service | free
 - Message templates | design embeds, buttons, and select menus and see them as Discord shows them | free
-- Stored variables | keep points, counts, and settings per member or server | free
+- Stored variables | keep points, counts, and settings per member or server, up to 64 KB per value | free
 - Marketplace templates | add a ready-made bot, like moderation or giveaways, then change it | free
 - Share and list your own templates | anyone with the link can add it, and listed ones show in the Marketplace | free
 - Flow AI, opened with the Ask AI button in the editor | describe a command and it adds and connects the blocks | free, 2 prompts a month, more on paid plans
 - AI blocks (Ask AI, Search the Web, AI Check, AI Choice, AI Score, AI Translate) | the bot answers questions and sorts messages | free, paid in credits
 - HTTP Request and Discord API Request blocks | call any API | free
-- Integrations: ER:LC, Roblox, and Cookie API | ready blocks for ER:LC private servers, Roblox users and groups, and Cookie API | free, ER:LC needs your server key
+- Run JavaScript block | a short piece of JavaScript for logic that would take many blocks, up to 4,000 characters and 25 ms, can read from Discord, ER:LC, and Cookie API, use stored variables, and send requests to other websites | free, 10 credits a run, plus 1 for each read from ER:LC or Cookie API, 1 for each change or list of a stored variable, and 3 for each request to another website
+- Integrations: ER:LC, Roblox, Roblox Open Cloud, Bloxlink, and Cookie API | ready blocks for ER:LC private servers, Roblox users, ranking in Roblox groups, Bloxlink verification, and Cookie API | free, ER:LC needs your server key, Roblox Open Cloud and Bloxlink need your API key
 - Collaborators | others edit the same bot with you | free, 3 including you, more on paid plans
 - MCP server at https://kite.onl/api/mcp | build and change the bot from Claude, ChatGPT, Codex, Cursor, or VS Code | free
 - Custom status | your own status instead of "Powered by Kite.onl" | free
 - Rotating status and the Set status block | up to 10 statuses that change every minute | Kite Plus and up
 - Animated avatar and banner | GIF or animated WebP profile | Kite Plus and up
 - Play audio in voice channels | upload a sound and the bot plays it | Kite Plus and up
-- Profile per server | another nickname, avatar, banner, and About Me in each server | Kite Premium and up
+- Profile per server | another nickname, avatar, banner, About Me, and name style in each server. The name style is a font, an effect, and colors. Servers show the font. The profile also shows the effect and colors | Kite Premium and up
 - Send message as | one message with another name and avatar, like the user who ran the command | Kite Premium and up
 - Priority support | Kite Premium and up
 
 Free plan (called Basic in the API and on the plan cards):
 - 15 commands, 10 event listeners, 25 stored variables, and 25 message templates.
+- Only enabled commands and event listeners count toward their limits, on every plan. An app can have 3 times each limit including disabled ones (`limit.TotalFactor` in kite-service). Scheduled tasks and webhooks work the same.
 - 10,000 credits per month.
 - Up to 100 servers per bot.
 - 3 collaborators including you, 10 secrets, 5 scheduled tasks every 5 minutes at most, and 5 webhooks.
@@ -74,7 +76,7 @@ Trial, refunds, cancellation:
 Credits:
 - Most actions, like sending a message or banning a member, cost 1 credit.
 - Conditions, loops, and getting servers, channels, members, messages, and stored variables are free.
-- AI blocks and HTTP requests cost more. The pricing page lists every cost, generated from the block definitions.
+- AI blocks, HTTP requests, and the Run JavaScript block cost more. The pricing page lists every cost, generated from the block definitions.
 - Being online costs nothing. Flow AI prompts don't use credits.
 - Out of credits: the bot stays online, its commands and events pause, and members who use it are told why. It warns at 80%, DMs the owner at 80% and 100%, and runs again when the month ends or a few minutes after an upgrade.
 
@@ -83,7 +85,7 @@ Stats (number | what it counts | source | date checked):
 - 79,314 | users | same endpoint | 2026-11-02
 - 198,504 | commands and event listeners | same endpoint | 2026-11-02
 - 23,098,351 | flow runs last month | same endpoint | 2026-11-02
-- 108 | Marketplace templates, 19 by Kite and 89 from the community | GET https://api.kite.onl/v1/bundles | 2026-11-05
+- 160 | Marketplace templates, 19 by Kite and 141 from the community | GET https://api.kite.onl/v1/bundles | 2026-11-13
 - 334 | GitHub stars | github.com/merlinfuchs/kite | 2026-11-02
 - 2024 | year Kite started | first commit 2024-01-10 | 2026-11-02
 - Most added templates: Moderation 482, Ask AI 432, Server Info 260, Welcomer 257, Giveaways 235 | install_count from /v1/bundles | 2026-11-02
@@ -92,9 +94,11 @@ Main page action: "Get started for free", to /apps. Marketplace pages lead with 
 
 Exact names of things users see:
 - Dashboard sidebar: Dashboard, Upgrade (Plan on a paid plan), Settings, Logs, Servers, Emojis, Commands, Event listeners, Scheduled tasks, Webhooks, Message templates, Marketplace, Your templates, Stored variables, Secrets, Integrations.
+- Command types: Slash command, User command, and Message command. User and Message commands show in the Apps menu when someone right-clicks a user or message. Discord calls them context menu commands.
 - Editor: flow, block, and the Ask AI button, which opens Flow AI. Ask AI is also the name of a block and a template.
 - Block names as in kite-web/src/lib/blocks titles, like Send message, Ban member, Ask AI, Search the Web, AI Check, HTTP Request, Edit server profile, Send message as, Set status.
-- Integrations: Discord, ER:LC, Roblox, Cookie API.
+- Integrations: Discord, ER:LC, Roblox, Roblox Open Cloud, Bloxlink, Cookie API.
+- Badges: Template creator (listed, then 10, 100 or 1,000 users), Early creator, Early supporter, Kite Plus/Premium/Ultimate subscriber, Contributor and Staff on creator pages and in the account menu. Staff pick on templates.
 - Plans: Basic, Plus, Premium, and Ultimate. Basic is the free plan.
 - The plan page in the dashboard is titled Plans, and its sidebar link says Upgrade, or Plan on a paid plan. There's no Premium page.
 - Pages: /pricing, /marketplace, /alternatives, /guides, /tools, /refund. Docs at docs.kite.onl. The dashboard is kite.onl/apps.
@@ -138,3 +142,26 @@ Language notes:
 - Sentence case for headings, page titles, buttons, menu items, and labels. Product, plan, block, and integration names keep their capitals, like Flow AI, Kite Premium, Send message, and ER:LC.
 - Use the Oxford comma: "commands, events, and messages". Older copy without it gets fixed when the sentence is edited anyway.
 ```
+
+## Where Kite is listed
+
+Update these when the free plan, prices, or the description change. Listings that quote limits are marked.
+
+| Where | Page | Quotes limits | How to update |
+| --- | --- | --- | --- |
+| AlternativeTo | https://alternativeto.net/software/kite-onl/ | Yes | Edit the listing while logged in |
+| SaaSHub | https://www.saashub.com/kite-onl | Yes | Edit the listing, verified with an @kite.onl email on 2026-11-13 |
+| Open Launch | https://open-launch.com/projects/kite-discord-bot-maker, launches 2026-11-14 | Yes | Edit the project while logged in |
+| Uneed | https://www.uneed.best/tool/kite-discord-bot-maker, launches 2026-11-27 | Yes | Edit the product while logged in |
+| Startup Stash | Submitted 2026-11-13, waiting for approval | Yes | Email hello@startupstash.com |
+| Official MCP Registry | `onl.kite/kite` | No | `kite-web/src/lib/mcp/server.json`, then `mcp-publisher publish` with a higher version |
+| Glama | `onl.kite/kite`, imported from the registry | No | Claimed through `kite-web/public/.well-known/glama.json` |
+| LobeHub | `merlinfuchs-kite` | No | `lhm` CLI |
+| mcpservers.org, mcp.so | Kite MCP server | No | Edit the listing while logged in |
+| Claude connector directory | Kite Discord Bot Builder, submitted 2026-10-28 | No | Anthropic's submission form |
+| top.gg | Kite's own bot | No | Edit the bot page |
+
+Articles by others that quote Kite's limits, checked 2026-11-13:
+
+- https://www.creatediscordbot.com/blog/botghost-alternatives ranks Kite first but still has the old free plan of 25 commands and 5 event listeners. Contact the author at hello@creatediscordbot.com.
+- https://mavibot.ai/posts/best-no-code-discord-bot-builders-2026 has the current free plan and prices.

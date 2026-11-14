@@ -65,10 +65,19 @@ var eventFilterTargets = map[string][]EventFilterTarget{
 		EventFilterTypeUserID, EventFilterTypeGuildID, EventFilterTypeChannelID,
 		EventFilterTypeMessageID, EventFilterTypeRoleID,
 	},
+	// Bots can't boost, and the roles are the ones left after the booster
+	// role was taken away.
+	"guild_boost_remove": {
+		EventFilterTypeUserID, EventFilterTypeGuildID, EventFilterTypeRoleID,
+	},
 	// The user is whoever did it.
 	"guild_audit_log_entry_create": {
 		EventFilterTypeAuditLogAction, EventFilterTypeUserID, EventFilterTypeGuildID,
 		EventFilterTypeChannelID,
+	},
+	"voice_state_update": {
+		EventFilterTypeVoiceStateAction, EventFilterTypeUserID, EventFilterTypeGuildID,
+		EventFilterTypeChannelID, EventFilterTypeRoleID, EventFilterTypeUserIsBot,
 	},
 }
 
@@ -95,7 +104,7 @@ func eventFilterModes(target EventFilterTarget) []ComparsionMode {
 	switch {
 	case isBooleanEventFilterTarget(target), target == EventFilterTypeRoleID, target == EventFilterTypeEmoji:
 		return []ComparsionMode{ComparsionModeEqual, ComparsionModeNotEqual}
-	case target == EventFilterTypeAuditLogAction:
+	case target == EventFilterTypeAuditLogAction, target == EventFilterTypeVoiceStateAction:
 		return []ComparsionMode{ComparsionModeOneOf, ComparsionModeNotOneOf}
 	}
 	return nil
@@ -176,6 +185,8 @@ func eventFilterMatches(filter *FlowNodeData, data FlowContextData, botID discor
 		if e, ok := event.(*gateway.GuildAuditLogEntryCreateEvent); ok {
 			subject = auditlog.Action(e.AuditLogEntry)
 		}
+	case EventFilterTypeVoiceStateAction:
+		subject = voiceStateAction(event)
 	}
 
 	if filter.EventFilterIgnoreCase && filter.EventFilterTarget == EventFilterTypeMessageContent {
@@ -234,6 +245,10 @@ func eventFilterBool(target EventFilterTarget, event any, botID discord.UserID) 
 			return e.User.Bot
 		case *gateway.MessageReactionAddEvent:
 			return e.Member != nil && e.Member.User.Bot
+		case *gateway.VoiceStateUpdateEvent:
+			return e.Member != nil && e.Member.User.Bot
+		case *guildevent.VoiceStateUpdate:
+			return e.Member != nil && e.Member.User.Bot
 		}
 		return false
 	}
@@ -265,6 +280,12 @@ func eventMemberHasRole(event any, value string) bool {
 		member = e.Member
 	case *gateway.GuildMemberAddEvent:
 		member = &e.Member
+	case *gateway.VoiceStateUpdateEvent:
+		member = e.Member
+	case *guildevent.VoiceStateUpdate:
+		member = e.Member
+	case *guildevent.BoostRemove:
+		member = &discord.Member{RoleIDs: e.RoleIDs}
 	}
 	if member == nil {
 		return false
@@ -301,4 +322,17 @@ func eventEmojiMatches(event any, value string) bool {
 
 	// Some unicode emojis come with or without a variation selector.
 	return strings.ReplaceAll(value, "\uFE0F", "") == strings.ReplaceAll(emoji.Name, "\uFE0F", "")
+}
+
+func voiceStateAction(event any) string {
+	switch e := event.(type) {
+	case *guildevent.VoiceStateUpdate:
+		return e.Action
+	case *gateway.VoiceStateUpdateEvent:
+		if !e.ChannelID.IsValid() {
+			return "leave"
+		}
+		return "join"
+	}
+	return ""
 }
