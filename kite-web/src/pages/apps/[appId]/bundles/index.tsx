@@ -208,8 +208,9 @@ function BundleEntry({ bundle }: { bundle: UserBundle }) {
             </div>
           )}
           <div className="text-xs text-muted-foreground mt-1">
-            Version {bundle.version} · {items} {items === 1 ? "item" : "items"}{" "}
-            · Added to {formatNumber(bundle.install_count)}{" "}
+            Version {bundle.version_label ?? bundle.version} · {items}{" "}
+            {items === 1 ? "item" : "items"} · Added to{" "}
+            {formatNumber(bundle.install_count)}{" "}
             {bundle.install_count === 1 ? "bot" : "bots"}
             {bundle.active_install_count > 0 && (
               <span title={activeInstallsTitle}>

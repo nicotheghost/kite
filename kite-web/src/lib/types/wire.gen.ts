@@ -505,11 +505,13 @@ export interface Bundle {
    * by.
    */
   created_at: string /* RFC3339 */;
+  version_label?: string;
 }
 export interface BundleVersionNotes {
   version: number /* int */;
   notes: string;
   created_at: string /* RFC3339 */;
+  version_label?: string;
 }
 /**
  * BundleOwner is the user who made a bundle, as anyone can see it on Discord.
@@ -594,6 +596,8 @@ export interface UserBundle {
    * RemovedReason is why Kite took the bundle down, null if it didn't.
    */
   removed_reason: null | string;
+  version_label?: string;
+  approved_version_label?: string;
 }
 export type UserBundleListResponse = (UserBundle | undefined)[];
 /**
@@ -625,6 +629,7 @@ export interface BundleVersionCreateRequest extends BundleContentRequest {
    * Notes are what changed, for the apps that update to it.
    */
   notes: string;
+  version_label?: string;
 }
 export type BundleVersionCreateResponse = UserBundle;
 /**
@@ -682,6 +687,8 @@ export interface BundleInstall {
   items: BundleInstallItem[];
   created_at: string /* RFC3339 */;
   updated_at: string /* RFC3339 */;
+  version_label?: string;
+  available_version_label?: string;
 }
 /**
  * BundleInstallItem is a command, event listener or message the install

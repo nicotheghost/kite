@@ -11,12 +11,13 @@ INSERT INTO bundle_installs (
     creator_user_id,
     bundle_id,
     bundle_version,
+    version_label,
     settings,
     resources,
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 ) RETURNING *;
 
 -- name: GetBundleInstall :one
@@ -27,6 +28,7 @@ SELECT * FROM bundle_installs WHERE id = $1 AND app_id = $2;
 -- name: UpdateBundleInstall :one
 UPDATE bundle_installs SET
     bundle_version = @bundle_version,
+    version_label = @version_label,
     settings = @settings,
     resources = @resources,
     updated_at = @updated_at

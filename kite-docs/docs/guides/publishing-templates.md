@@ -72,3 +72,5 @@ Your creator page shows your badges, which you also see in the menu of your acco
 - Staff, for the Kite team.
 
 The Kite team also picks templates it likes, which then show a Staff pick seal in the Marketplace.
+
+When you choose `Publish update`, you can enter a version number higher than the last one. For example, publish `1.01` after `1`, or `2.5` after `2`. Leave the version blank to use the next whole number. Kite preserves the version exactly as you enter it, including trailing zeros.

@@ -70,6 +70,7 @@ func (c *Client) CreateBundleInstall(ctx context.Context, install *model.BundleI
 		CreatorUserID: install.CreatorUserID,
 		BundleID:      install.BundleID,
 		BundleVersion: int32(install.BundleVersion),
+		VersionLabel:  install.VersionLabel,
 		// The column is named after what parameters were called before.
 		Settings:  params,
 		Resources: items,
@@ -149,6 +150,7 @@ func (c *Client) UpdateBundleInstall(ctx context.Context, install *model.BundleI
 	row, err := c.Q.WithTx(tx).UpdateBundleInstall(ctx, pgmodel.UpdateBundleInstallParams{
 		ID:            install.ID,
 		BundleVersion: int32(install.BundleVersion),
+		VersionLabel:  install.VersionLabel,
 		// The column is named after what parameters were called before.
 		Settings:      params,
 		Resources:     items,
@@ -271,6 +273,7 @@ func rowToBundleInstall(row pgmodel.BundleInstall) (*model.BundleInstall, error)
 		CreatorUserID: row.CreatorUserID,
 		BundleID:      row.BundleID,
 		BundleVersion: int(row.BundleVersion),
+		VersionLabel:  row.VersionLabel,
 		Parameters:    params,
 		Items:         items,
 		CreatedAt:     row.CreatedAt.Time,

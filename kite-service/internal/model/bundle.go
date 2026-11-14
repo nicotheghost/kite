@@ -28,11 +28,14 @@ type Bundle struct {
 	// Version is the version of Content. Loaders with
 	// the content load InstallVersion, the others the newest. Use
 	// InstallVersion and LatestVersion to know which version is which.
-	Version int
+	Version      int
+	VersionLabel string
 	// LatestVersion is the newest version, which new versions are published
 	// after. It's newer than the install version while a new version is in
 	// review.
-	LatestVersion int
+	LatestVersion        int
+	LatestVersionLabel   string
+	ApprovedVersionLabel string
 	// ApprovedVersion is the version of a user's bundle a review approved
 	// last, or 0 if none was.
 	ApprovedVersion int
@@ -115,9 +118,10 @@ func (b *Bundle) VisibleTo(userID string) bool {
 
 // BundleVersionNotes are what changed in a version of a bundle.
 type BundleVersionNotes struct {
-	Version   int
-	Notes     string
-	CreatedAt time.Time
+	Version      int
+	VersionLabel string
+	Notes        string
+	CreatedAt    time.Time
 }
 
 // BundleListing is how a bundle is shown on its page and in the marketplace.

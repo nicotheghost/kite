@@ -5,6 +5,8 @@
 SELECT
     sqlc.embed(bundles),
     bundle_versions.content,
+    bundle_versions.version_label,
+    latest.version_label AS latest_version_label,
     COALESCE(bundle_install_counts.total, 0)::int AS install_count,
     COALESCE(bundle_install_counts.active, 0)::int AS active_install_count,
     (SELECT count(*) FROM bundle_stars WHERE bundle_stars.bundle_id = bundles.id)::int AS star_count,
@@ -25,6 +27,7 @@ FROM bundles
 LEFT JOIN bundle_listings ON bundle_listings.bundle_id = bundles.id
 JOIN bundle_versions ON bundle_versions.bundle_id = bundles.id
     AND bundle_versions.version = COALESCE(bundles.approved_version, bundles.version)
+JOIN bundle_versions latest ON latest.bundle_id = bundles.id AND latest.version = bundles.version
 LEFT JOIN bundle_install_counts ON bundle_install_counts.bundle_id = bundles.id
 WHERE bundles.id = $1;
 
@@ -114,6 +117,8 @@ ORDER BY bundle_versions.version DESC;
 -- name: GetBundlesByOwner :many
 SELECT
     sqlc.embed(bundles),
+    bundle_versions.version_label,
+    COALESCE(approved.version_label, '')::text AS approved_version_label,
     (bundle_listings.bundle_id IS NOT NULL)::bool AS listed,
     COALESCE(bundle_install_counts.total, 0)::int AS install_count,
     COALESCE(bundle_install_counts.active, 0)::int AS active_install_count,
@@ -125,6 +130,7 @@ SELECT
     )::int AS item_count
 FROM bundles
 JOIN bundle_versions ON bundle_versions.bundle_id = bundles.id AND bundle_versions.version = bundles.version
+LEFT JOIN bundle_versions approved ON approved.bundle_id = bundles.id AND approved.version = bundles.approved_version
 LEFT JOIN bundle_listings ON bundle_listings.bundle_id = bundles.id
 LEFT JOIN bundle_install_counts ON bundle_install_counts.bundle_id = bundles.id
 WHERE bundles.owner_user_id = $1
@@ -172,9 +178,10 @@ INSERT INTO bundle_versions (
     version,
     content,
     notes,
-    created_at
+    created_at,
+    version_label
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 );
 
 -- A bundle Kite took down stays, with its reports.
@@ -193,8 +200,8 @@ WHERE bundle_versions.bundle_id = @bundle_id AND bundle_versions.version <= @bef
     AND bundle_versions.version <> COALESCE((SELECT bundles.approved_version FROM bundles WHERE bundles.id = @bundle_id), 0);
 
 -- name: GetBundleVersionNotes :many
-SELECT version, notes, created_at FROM bundle_versions
-WHERE bundle_id = $1 AND notes <> ''
+SELECT version, notes, created_at, version_label FROM bundle_versions
+WHERE bundle_id = $1 AND (notes <> '' OR version_label <> '')
 ORDER BY version DESC;
 
 -- Users' bundles listed in the marketplace, with their approved version and
@@ -205,6 +212,7 @@ SELECT
     sqlc.embed(bundles),
     sqlc.embed(bundle_listings),
     bundle_versions.content,
+    bundle_versions.version_label,
     sqlc.embed(users),
     COALESCE(bundle_install_counts.total, 0)::int AS install_count,
     COALESCE(bundle_install_counts.active, 0)::int AS active_install_count,
@@ -266,12 +274,15 @@ WHERE bundles.removed_at IS NULL
 -- name: GetBundleSummaries :many
 SELECT
     sqlc.embed(bundles),
+    COALESCE(bundle_versions.version_label, '')::text AS version_label,
     bundle_listings.icon AS listing_icon,
     users.display_name AS owner_display_name,
     users.discord_id AS owner_discord_id,
     users.discord_username AS owner_discord_username,
     users.discord_avatar AS owner_discord_avatar
 FROM bundles
+LEFT JOIN bundle_versions ON bundle_versions.bundle_id = bundles.id
+    AND bundle_versions.version = COALESCE(bundles.approved_version, bundles.version)
 LEFT JOIN bundle_listings ON bundle_listings.bundle_id = bundles.id
 LEFT JOIN users ON users.id = bundles.owner_user_id
 WHERE bundles.id = ANY(@ids::text[]);

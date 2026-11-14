@@ -16,6 +16,7 @@ type BundleInstall struct {
 	CreatorUserID string
 	BundleID      string
 	BundleVersion int
+	VersionLabel  string
 	// Parameters are the values the user filled in for the bundle's
 	// parameters.
 	Parameters map[string]string

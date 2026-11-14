@@ -299,6 +299,12 @@ export function RemovedStatus({ reason }: { reason: string }) {
 export function ListingStatus({ bundle }: { bundle: UserBundle }) {
   const review = bundle.latest_review;
   const listed = bundle.listed_version;
+  const approvedLabel =
+    bundle.approved_version_label ?? bundle.approved_version;
+  const reviewLabel =
+    review?.version === bundle.version
+      ? bundle.version_label ?? review.version
+      : review?.version;
 
   // A review of the listed version is a change of its page.
   let status: ReactNode = "Not in the Marketplace.";
@@ -308,7 +314,7 @@ export function ListingStatus({ bundle }: { bundle: UserBundle }) {
         ? "In review for the Marketplace."
         : review.version === listed
         ? "Listed in the Marketplace, your changes to its page are in review."
-        : `Listed in the Marketplace, version ${review.version} is in review and apps get version ${listed} until then.`;
+        : `Listed in the Marketplace, version ${reviewLabel} is in review and apps get version ${approvedLabel} until then.`;
   } else if (review?.status === "rejected") {
     status = (
       <span className="text-destructive">
@@ -316,14 +322,14 @@ export function ListingStatus({ bundle }: { bundle: UserBundle }) {
           ? "Not approved for the Marketplace: "
           : review.version === listed
           ? "Listed in the Marketplace, but your changes to its page weren't approved: "
-          : `Version ${review.version} wasn't approved, apps keep version ${listed}: `}
+          : `Version ${reviewLabel} wasn't approved, apps keep version ${approvedLabel}: `}
         {review.reason}
       </span>
     );
   } else if (listed !== null) {
     status = "Listed in the Marketplace.";
   } else if (bundle.approved_version !== null) {
-    status = `Not in the Marketplace. Apps get version ${bundle.approved_version}, the last one Kite approved, until it's listed again.`;
+    status = `Not in the Marketplace. Apps get version ${approvedLabel}, the last one Kite approved, until it's listed again.`;
   }
   return <>{status}</>;
 }

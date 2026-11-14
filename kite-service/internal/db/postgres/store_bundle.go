@@ -50,6 +50,11 @@ func (c *Client) Bundle(ctx context.Context, id string) (*model.Bundle, error) {
 	b.StarCount = int(row.StarCount)
 
 	b.Version = b.InstallVersion()
+	b.VersionLabel = row.VersionLabel
+	b.LatestVersionLabel = row.LatestVersionLabel
+	if b.ApprovedVersion > 0 {
+		b.ApprovedVersionLabel = row.VersionLabel
+	}
 
 	noteRows, err := c.Q.GetBundleVersionNotes(ctx, id)
 	if err != nil {
@@ -60,9 +65,10 @@ func (c *Client) Bundle(ctx context.Context, id string) (*model.Bundle, error) {
 			continue
 		}
 		b.VersionNotes = append(b.VersionNotes, model.BundleVersionNotes{
-			Version:   int(n.Version),
-			Notes:     n.Notes,
-			CreatedAt: n.CreatedAt.Time,
+			Version:      int(n.Version),
+			VersionLabel: n.VersionLabel,
+			Notes:        n.Notes,
+			CreatedAt:    n.CreatedAt.Time,
 		})
 	}
 	return b, nil
@@ -112,6 +118,7 @@ func (c *Client) BundleSummaries(ctx context.Context, ids []string) ([]*model.Bu
 		if err != nil {
 			return nil, err
 		}
+		b.VersionLabel = row.VersionLabel
 		// Lists only show the icon of the listing.
 		if row.ListingIcon.Valid {
 			b.Listing = &model.BundleListing{Icon: row.ListingIcon.String}
@@ -147,6 +154,7 @@ func (c *Client) ListedUserBundles(ctx context.Context) ([]*model.Bundle, error)
 			return nil, err
 		}
 		b.Version = b.InstallVersion()
+		b.VersionLabel = row.VersionLabel
 		b.Owner = rowToUser(row.User)
 		b.InstallCount = int(row.InstallCount)
 		b.ActiveInstallCount = int(row.ActiveInstallCount)
@@ -289,6 +297,9 @@ func (c *Client) BundlesByOwner(ctx context.Context, userID string) ([]*model.Bu
 		if bundles[i], err = rowToBundle(row.Bundle, nil, nil); err != nil {
 			return nil, err
 		}
+		bundles[i].VersionLabel = row.VersionLabel
+		bundles[i].LatestVersionLabel = row.VersionLabel
+		bundles[i].ApprovedVersionLabel = row.ApprovedVersionLabel
 		bundles[i].ItemCount = int(row.ItemCount)
 		bundles[i].InstallCount = int(row.InstallCount)
 		bundles[i].ActiveInstallCount = int(row.ActiveInstallCount)
@@ -454,11 +465,12 @@ func newVersionsReviewed(ctx context.Context, q *pgmodel.Queries, bundleID strin
 
 func createBundleVersion(ctx context.Context, q *pgmodel.Queries, bundle *model.Bundle) error {
 	err := q.CreateBundleVersion(ctx, pgmodel.CreateBundleVersionParams{
-		BundleID:  bundle.ID,
-		Version:   int32(bundle.Version),
-		Content:   bundle.Content,
-		Notes:     bundle.Notes,
-		CreatedAt: pgtype.Timestamp{Time: bundle.UpdatedAt.UTC(), Valid: true},
+		BundleID:     bundle.ID,
+		Version:      int32(bundle.Version),
+		Content:      bundle.Content,
+		Notes:        bundle.Notes,
+		VersionLabel: bundle.VersionLabel,
+		CreatedAt:    pgtype.Timestamp{Time: bundle.UpdatedAt.UTC(), Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create bundle version: %w", err)

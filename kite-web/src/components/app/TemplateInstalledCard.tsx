@@ -97,7 +97,11 @@ export function TemplateInstalledCard({ template }: { template: Template }) {
     });
     setOverwrite(new Set());
     setUpdateOpen(false);
-    toast.success(`Updated ${template.name} to version ${template.version}`);
+    toast.success(
+      `Updated ${template.name} to version ${
+        template.versionLabel ?? template.version
+      }`
+    );
   }
 
   return (
@@ -115,7 +119,7 @@ export function TemplateInstalledCard({ template }: { template: Template }) {
         <div className="mb-5">
           <div className="flex items-center gap-2 text-sm font-medium mb-1.5">
             <ArrowUpCircleIcon className="h-4 w-4 text-primary" />
-            Version {template.version} is available
+            Version {template.versionLabel ?? template.version} is available
           </div>
           <p className="text-sm text-muted-foreground mb-3">
             Updating replaces what you didn&apos;t change with the new version.
@@ -126,7 +130,7 @@ export function TemplateInstalledCard({ template }: { template: Template }) {
             </p>
           )}
           <Button className="w-full" onClick={() => setUpdateOpen(true)}>
-            Update to version {template.version}
+            Update to version {template.versionLabel ?? template.version}
           </Button>
         </div>
       )}
@@ -135,7 +139,8 @@ export function TemplateInstalledCard({ template }: { template: Template }) {
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Update {template.name} to version {template.version}
+              Update {template.name} to version{" "}
+              {template.versionLabel ?? template.version}
             </DialogTitle>
             <DialogDescription>
               Messages already posted in Discord stay as they are.
@@ -153,10 +158,10 @@ export function TemplateInstalledCard({ template }: { template: Template }) {
                       className="rounded-lg bg-muted/50 px-4 py-3 text-sm"
                     >
                       <div className="text-xs font-medium text-muted-foreground mb-1">
-                        Version {n.version}
+                        Version {n.version_label ?? n.version}
                       </div>
                       <div className="whitespace-pre-line leading-relaxed">
-                        {n.notes}
+                        {n.notes || "No release notes."}
                       </div>
                     </div>
                   ))}

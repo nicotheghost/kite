@@ -130,6 +130,7 @@ function BundleForm({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
+  const [versionLabel, setVersionLabel] = useState("");
   // A new version starts with the items of the current one.
   const [selected, setSelected] = useState(() => new Set(itemKeys));
   // Whether the owner switched sharing the value of a parameter on or off.
@@ -165,6 +166,7 @@ function BundleForm({
           bundleId: bundle.id,
           ...content,
           notes: notes.trim(),
+          version_label: versionLabel.trim() || undefined,
         })
       : await createMutation.mutateAsync({
           name: name.trim(),
@@ -181,7 +183,9 @@ function BundleForm({
     }
     toast.success(
       bundle
-        ? `Published version ${res.data.version} of ${res.data.name}`
+        ? `Published version ${res.data.version_label ?? res.data.version} of ${
+            res.data.name
+          }`
         : `Created ${res.data.name}`
     );
     onDone();
@@ -191,9 +195,7 @@ function BundleForm({
     <>
       <DialogHeader>
         <DialogTitle>
-          {bundle
-            ? `Publish version ${bundle.version + 1} of ${bundle.name}`
-            : "Create template"}
+          {bundle ? `Publish update for ${bundle.name}` : "Create template"}
         </DialogTitle>
         <DialogDescription>
           {bundle
@@ -208,15 +210,43 @@ function BundleForm({
 
       <div className="space-y-4">
         {bundle ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="bundle-notes">What changed</Label>
-            <Textarea
-              id="bundle-notes"
-              value={notes}
-              maxLength={1000}
-              placeholder="Shown to apps that update to this version"
-              onChange={(e) => setNotes(e.target.value)}
-            />
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="template-version">Version (optional)</Label>
+              <Input
+                id="template-version"
+                value={versionLabel}
+                inputMode="decimal"
+                maxLength={20}
+                placeholder={String(
+                  Number(
+                    (bundle.version_label ?? String(bundle.version)).split(
+                      "."
+                    )[0]
+                  ) + 1
+                )}
+                onChange={(e) => setVersionLabel(e.target.value)}
+                aria-describedby="template-version-help"
+              />
+              <p
+                id="template-version-help"
+                className="text-xs text-muted-foreground"
+              >
+                Current version is {bundle.version_label ?? bundle.version}.
+                Enter a higher version or leave this blank to use the next whole
+                number.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bundle-notes">What changed</Label>
+              <Textarea
+                id="bundle-notes"
+                value={notes}
+                maxLength={1000}
+                placeholder="Shown to apps that update to this version"
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
           </div>
         ) : (
           <>

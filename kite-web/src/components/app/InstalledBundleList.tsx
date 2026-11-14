@@ -49,13 +49,18 @@ function InstalledBundleEntry({ install }: { install: BundleInstall }) {
               {install.name}
             </span>
             {hasUpdate(install) && (
-              <Badge>Update to version {install.available_version}</Badge>
+              <Badge>
+                Update to version{" "}
+                {install.available_version_label ?? install.available_version}
+              </Badge>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground mt-1">
             <Maker install={install} />
             <span>·</span>
-            <span>Version {install.bundle_version}</span>
+            <span>
+              Version {install.version_label ?? install.bundle_version}
+            </span>
           </div>
           {gone && (
             <div className="text-xs text-destructive mt-1">

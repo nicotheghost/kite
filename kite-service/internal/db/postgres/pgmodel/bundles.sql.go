@@ -68,18 +68,20 @@ INSERT INTO bundle_versions (
     version,
     content,
     notes,
-    created_at
+    created_at,
+    version_label
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
 `
 
 type CreateBundleVersionParams struct {
-	BundleID  string
-	Version   int32
-	Content   []byte
-	Notes     string
-	CreatedAt pgtype.Timestamp
+	BundleID     string
+	Version      int32
+	Content      []byte
+	Notes        string
+	CreatedAt    pgtype.Timestamp
+	VersionLabel string
 }
 
 func (q *Queries) CreateBundleVersion(ctx context.Context, arg CreateBundleVersionParams) error {
@@ -89,6 +91,7 @@ func (q *Queries) CreateBundleVersion(ctx context.Context, arg CreateBundleVersi
 		arg.Content,
 		arg.Notes,
 		arg.CreatedAt,
+		arg.VersionLabel,
 	)
 	return err
 }
@@ -127,6 +130,8 @@ const getBundleCurrentVersion = `-- name: GetBundleCurrentVersion :one
 SELECT
     bundles.id, bundles.name, bundles.description, bundles.owner_user_id, bundles.version, bundles.created_at, bundles.updated_at, bundles.source_app_id, bundles.approved_version, bundles.removed_at, bundles.removed_reason, bundles.icon, bundles.category, bundles.about, bundles.setup, bundles.staff_picked_at,
     bundle_versions.content,
+    bundle_versions.version_label,
+    latest.version_label AS latest_version_label,
     COALESCE(bundle_install_counts.total, 0)::int AS install_count,
     COALESCE(bundle_install_counts.active, 0)::int AS active_install_count,
     (SELECT count(*) FROM bundle_stars WHERE bundle_stars.bundle_id = bundles.id)::int AS star_count,
@@ -147,6 +152,7 @@ FROM bundles
 LEFT JOIN bundle_listings ON bundle_listings.bundle_id = bundles.id
 JOIN bundle_versions ON bundle_versions.bundle_id = bundles.id
     AND bundle_versions.version = COALESCE(bundles.approved_version, bundles.version)
+JOIN bundle_versions latest ON latest.bundle_id = bundles.id AND latest.version = bundles.version
 LEFT JOIN bundle_install_counts ON bundle_install_counts.bundle_id = bundles.id
 WHERE bundles.id = $1
 `
@@ -154,6 +160,8 @@ WHERE bundles.id = $1
 type GetBundleCurrentVersionRow struct {
 	Bundle             Bundle
 	Content            []byte
+	VersionLabel       string
+	LatestVersionLabel string
 	InstallCount       int32
 	ActiveInstallCount int32
 	StarCount          int32
@@ -193,6 +201,8 @@ func (q *Queries) GetBundleCurrentVersion(ctx context.Context, id string) (GetBu
 		&i.Bundle.Setup,
 		&i.Bundle.StaffPickedAt,
 		&i.Content,
+		&i.VersionLabel,
+		&i.LatestVersionLabel,
 		&i.InstallCount,
 		&i.ActiveInstallCount,
 		&i.StarCount,
@@ -213,12 +223,15 @@ func (q *Queries) GetBundleCurrentVersion(ctx context.Context, id string) (GetBu
 const getBundleSummaries = `-- name: GetBundleSummaries :many
 SELECT
     bundles.id, bundles.name, bundles.description, bundles.owner_user_id, bundles.version, bundles.created_at, bundles.updated_at, bundles.source_app_id, bundles.approved_version, bundles.removed_at, bundles.removed_reason, bundles.icon, bundles.category, bundles.about, bundles.setup, bundles.staff_picked_at,
+    COALESCE(bundle_versions.version_label, '')::text AS version_label,
     bundle_listings.icon AS listing_icon,
     users.display_name AS owner_display_name,
     users.discord_id AS owner_discord_id,
     users.discord_username AS owner_discord_username,
     users.discord_avatar AS owner_discord_avatar
 FROM bundles
+LEFT JOIN bundle_versions ON bundle_versions.bundle_id = bundles.id
+    AND bundle_versions.version = COALESCE(bundles.approved_version, bundles.version)
 LEFT JOIN bundle_listings ON bundle_listings.bundle_id = bundles.id
 LEFT JOIN users ON users.id = bundles.owner_user_id
 WHERE bundles.id = ANY($1::text[])
@@ -226,6 +239,7 @@ WHERE bundles.id = ANY($1::text[])
 
 type GetBundleSummariesRow struct {
 	Bundle               Bundle
+	VersionLabel         string
 	ListingIcon          pgtype.Text
 	OwnerDisplayName     pgtype.Text
 	OwnerDiscordID       pgtype.Text
@@ -261,6 +275,7 @@ func (q *Queries) GetBundleSummaries(ctx context.Context, ids []string) ([]GetBu
 			&i.Bundle.About,
 			&i.Bundle.Setup,
 			&i.Bundle.StaffPickedAt,
+			&i.VersionLabel,
 			&i.ListingIcon,
 			&i.OwnerDisplayName,
 			&i.OwnerDiscordID,
@@ -278,15 +293,16 @@ func (q *Queries) GetBundleSummaries(ctx context.Context, ids []string) ([]GetBu
 }
 
 const getBundleVersionNotes = `-- name: GetBundleVersionNotes :many
-SELECT version, notes, created_at FROM bundle_versions
-WHERE bundle_id = $1 AND notes <> ''
+SELECT version, notes, created_at, version_label FROM bundle_versions
+WHERE bundle_id = $1 AND (notes <> '' OR version_label <> '')
 ORDER BY version DESC
 `
 
 type GetBundleVersionNotesRow struct {
-	Version   int32
-	Notes     string
-	CreatedAt pgtype.Timestamp
+	Version      int32
+	Notes        string
+	CreatedAt    pgtype.Timestamp
+	VersionLabel string
 }
 
 func (q *Queries) GetBundleVersionNotes(ctx context.Context, bundleID string) ([]GetBundleVersionNotesRow, error) {
@@ -298,7 +314,12 @@ func (q *Queries) GetBundleVersionNotes(ctx context.Context, bundleID string) ([
 	var items []GetBundleVersionNotesRow
 	for rows.Next() {
 		var i GetBundleVersionNotesRow
-		if err := rows.Scan(&i.Version, &i.Notes, &i.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&i.Version,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.VersionLabel,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -312,6 +333,8 @@ func (q *Queries) GetBundleVersionNotes(ctx context.Context, bundleID string) ([
 const getBundlesByOwner = `-- name: GetBundlesByOwner :many
 SELECT
     bundles.id, bundles.name, bundles.description, bundles.owner_user_id, bundles.version, bundles.created_at, bundles.updated_at, bundles.source_app_id, bundles.approved_version, bundles.removed_at, bundles.removed_reason, bundles.icon, bundles.category, bundles.about, bundles.setup, bundles.staff_picked_at,
+    bundle_versions.version_label,
+    COALESCE(approved.version_label, '')::text AS approved_version_label,
     (bundle_listings.bundle_id IS NOT NULL)::bool AS listed,
     COALESCE(bundle_install_counts.total, 0)::int AS install_count,
     COALESCE(bundle_install_counts.active, 0)::int AS active_install_count,
@@ -323,6 +346,7 @@ SELECT
     )::int AS item_count
 FROM bundles
 JOIN bundle_versions ON bundle_versions.bundle_id = bundles.id AND bundle_versions.version = bundles.version
+LEFT JOIN bundle_versions approved ON approved.bundle_id = bundles.id AND approved.version = bundles.approved_version
 LEFT JOIN bundle_listings ON bundle_listings.bundle_id = bundles.id
 LEFT JOIN bundle_install_counts ON bundle_install_counts.bundle_id = bundles.id
 WHERE bundles.owner_user_id = $1
@@ -330,11 +354,13 @@ ORDER BY bundles.created_at DESC, bundles.id
 `
 
 type GetBundlesByOwnerRow struct {
-	Bundle             Bundle
-	Listed             bool
-	InstallCount       int32
-	ActiveInstallCount int32
-	ItemCount          int32
+	Bundle               Bundle
+	VersionLabel         string
+	ApprovedVersionLabel string
+	Listed               bool
+	InstallCount         int32
+	ActiveInstallCount   int32
+	ItemCount            int32
 }
 
 // Without the content, only how many items the newest version has, and how
@@ -365,6 +391,8 @@ func (q *Queries) GetBundlesByOwner(ctx context.Context, ownerUserID pgtype.Text
 			&i.Bundle.About,
 			&i.Bundle.Setup,
 			&i.Bundle.StaffPickedAt,
+			&i.VersionLabel,
+			&i.ApprovedVersionLabel,
 			&i.Listed,
 			&i.InstallCount,
 			&i.ActiveInstallCount,
@@ -477,6 +505,7 @@ SELECT
     bundles.id, bundles.name, bundles.description, bundles.owner_user_id, bundles.version, bundles.created_at, bundles.updated_at, bundles.source_app_id, bundles.approved_version, bundles.removed_at, bundles.removed_reason, bundles.icon, bundles.category, bundles.about, bundles.setup, bundles.staff_picked_at,
     bundle_listings.bundle_id, bundle_listings.icon, bundle_listings.category, bundle_listings.about, bundle_listings.faq, bundle_listings.setup, bundle_listings.position, bundle_listings.updated_at, bundle_listings.name, bundle_listings.description,
     bundle_versions.content,
+    bundle_versions.version_label,
     users.id, users.email, users.display_name, users.discord_id, users.discord_username, users.discord_avatar, users.created_at, users.updated_at,
     COALESCE(bundle_install_counts.total, 0)::int AS install_count,
     COALESCE(bundle_install_counts.active, 0)::int AS active_install_count,
@@ -494,6 +523,7 @@ type GetListedUserBundlesRow struct {
 	Bundle             Bundle
 	BundleListing      BundleListing
 	Content            []byte
+	VersionLabel       string
 	User               User
 	InstallCount       int32
 	ActiveInstallCount int32
@@ -540,6 +570,7 @@ func (q *Queries) GetListedUserBundles(ctx context.Context) ([]GetListedUserBund
 			&i.BundleListing.Name,
 			&i.BundleListing.Description,
 			&i.Content,
+			&i.VersionLabel,
 			&i.User.ID,
 			&i.User.Email,
 			&i.User.DisplayName,

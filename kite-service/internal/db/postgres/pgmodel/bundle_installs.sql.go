@@ -21,13 +21,14 @@ INSERT INTO bundle_installs (
     creator_user_id,
     bundle_id,
     bundle_version,
+    version_label,
     settings,
     resources,
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
-) RETURNING id, name, description, enabled, app_id, creator_user_id, resources, created_at, updated_at, bundle_id, bundle_version, settings
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+) RETURNING id, name, description, enabled, app_id, creator_user_id, resources, created_at, updated_at, bundle_id, bundle_version, settings, version_label
 `
 
 type CreateBundleInstallParams struct {
@@ -39,6 +40,7 @@ type CreateBundleInstallParams struct {
 	CreatorUserID string
 	BundleID      string
 	BundleVersion int32
+	VersionLabel  string
 	Settings      []byte
 	Resources     []byte
 	CreatedAt     pgtype.Timestamp
@@ -55,6 +57,7 @@ func (q *Queries) CreateBundleInstall(ctx context.Context, arg CreateBundleInsta
 		arg.CreatorUserID,
 		arg.BundleID,
 		arg.BundleVersion,
+		arg.VersionLabel,
 		arg.Settings,
 		arg.Resources,
 		arg.CreatedAt,
@@ -74,6 +77,7 @@ func (q *Queries) CreateBundleInstall(ctx context.Context, arg CreateBundleInsta
 		&i.BundleID,
 		&i.BundleVersion,
 		&i.Settings,
+		&i.VersionLabel,
 	)
 	return i, err
 }
@@ -101,7 +105,7 @@ func (q *Queries) DeleteEmptyBundleInstall(ctx context.Context, id string) error
 }
 
 const getBundleInstall = `-- name: GetBundleInstall :one
-SELECT id, name, description, enabled, app_id, creator_user_id, resources, created_at, updated_at, bundle_id, bundle_version, settings FROM bundle_installs WHERE id = $1 AND app_id = $2
+SELECT id, name, description, enabled, app_id, creator_user_id, resources, created_at, updated_at, bundle_id, bundle_version, settings, version_label FROM bundle_installs WHERE id = $1 AND app_id = $2
 `
 
 type GetBundleInstallParams struct {
@@ -125,12 +129,13 @@ func (q *Queries) GetBundleInstall(ctx context.Context, arg GetBundleInstallPara
 		&i.BundleID,
 		&i.BundleVersion,
 		&i.Settings,
+		&i.VersionLabel,
 	)
 	return i, err
 }
 
 const getBundleInstallsByApp = `-- name: GetBundleInstallsByApp :many
-SELECT id, name, description, enabled, app_id, creator_user_id, resources, created_at, updated_at, bundle_id, bundle_version, settings FROM bundle_installs WHERE app_id = $1 ORDER BY created_at DESC, id
+SELECT id, name, description, enabled, app_id, creator_user_id, resources, created_at, updated_at, bundle_id, bundle_version, settings, version_label FROM bundle_installs WHERE app_id = $1 ORDER BY created_at DESC, id
 `
 
 func (q *Queries) GetBundleInstallsByApp(ctx context.Context, appID string) ([]BundleInstall, error) {
@@ -155,6 +160,7 @@ func (q *Queries) GetBundleInstallsByApp(ctx context.Context, appID string) ([]B
 			&i.BundleID,
 			&i.BundleVersion,
 			&i.Settings,
+			&i.VersionLabel,
 		); err != nil {
 			return nil, err
 		}
@@ -319,14 +325,16 @@ func (q *Queries) LockBundleInstall(ctx context.Context, id string) error {
 const updateBundleInstall = `-- name: UpdateBundleInstall :one
 UPDATE bundle_installs SET
     bundle_version = $1,
-    settings = $2,
-    resources = $3,
-    updated_at = $4
-WHERE id = $5 AND updated_at = $6 RETURNING id, name, description, enabled, app_id, creator_user_id, resources, created_at, updated_at, bundle_id, bundle_version, settings
+    version_label = $2,
+    settings = $3,
+    resources = $4,
+    updated_at = $5
+WHERE id = $6 AND updated_at = $7 RETURNING id, name, description, enabled, app_id, creator_user_id, resources, created_at, updated_at, bundle_id, bundle_version, settings, version_label
 `
 
 type UpdateBundleInstallParams struct {
 	BundleVersion int32
+	VersionLabel  string
 	Settings      []byte
 	Resources     []byte
 	UpdatedAt     pgtype.Timestamp
@@ -339,6 +347,7 @@ type UpdateBundleInstallParams struct {
 func (q *Queries) UpdateBundleInstall(ctx context.Context, arg UpdateBundleInstallParams) (BundleInstall, error) {
 	row := q.db.QueryRow(ctx, updateBundleInstall,
 		arg.BundleVersion,
+		arg.VersionLabel,
 		arg.Settings,
 		arg.Resources,
 		arg.UpdatedAt,
@@ -359,6 +368,7 @@ func (q *Queries) UpdateBundleInstall(ctx context.Context, arg UpdateBundleInsta
 		&i.BundleID,
 		&i.BundleVersion,
 		&i.Settings,
+		&i.VersionLabel,
 	)
 	return i, err
 }

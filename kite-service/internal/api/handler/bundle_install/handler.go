@@ -120,6 +120,7 @@ func setInstallSource(res *wire.BundleInstall, b *model.Bundle, userID string) {
 	}
 	if b.VisibleTo(userID) {
 		res.AvailableVersion = null.IntFrom(int64(b.InstallVersion()))
+		res.AvailableVersionLabel = b.VersionLabel
 	}
 }
 
@@ -151,6 +152,7 @@ func (h *BundleInstallHandler) HandleBundleInstallCreate(c *handler.Context, req
 			CreatorUserID: c.Session.UserID,
 			BundleID:      b.ID,
 			BundleVersion: b.Version,
+			VersionLabel:  b.VersionLabel,
 			CreatedAt:     time.Now().UTC(),
 		}
 	} else if install.BundleVersion < b.Version {
@@ -541,6 +543,7 @@ func (h *BundleInstallHandler) HandleBundleInstallUpdate(c *handler.Context, req
 	}
 
 	install.BundleVersion = b.Version
+	install.VersionLabel = b.VersionLabel
 	install.Parameters = params
 	// The messages and variables it created replace the ones the user deleted.
 	kept := slices.DeleteFunc(items[:before], func(item model.BundleInstallItem) bool {
@@ -728,6 +731,7 @@ func (h *BundleInstallHandler) currentBundle(c *handler.Context, id string) (*bu
 	if err != nil {
 		return nil, err
 	}
+	content.VersionLabel = b.VersionLabel
 	content.Name = b.Name
 	content.Description = b.Description
 	return content, nil

@@ -71,6 +71,12 @@ func (h *BundleInstallHandler) HandleBundleVersionCreate(c *handler.Context, req
 	// An approved bundle loads as its approved version, but new versions
 	// follow the newest one.
 	fromVersion := b.LatestVersion
+	label, err := nextTemplateVersionLabel(b.LatestVersion, b.LatestVersionLabel, req.VersionLabel)
+	if err != nil {
+		return nil, err
+	}
+	b.VersionLabel = label
+	b.LatestVersionLabel = label
 	b.Notes = strings.TrimSpace(req.Notes)
 	b.Version = b.LatestVersion + 1
 	b.LatestVersion = b.Version

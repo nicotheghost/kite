@@ -43,13 +43,15 @@ type Bundle struct {
 	StaffPick bool `json:"staff_pick"`
 	// CreatedAt is when it was made, which the marketplace shows the newest
 	// by.
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt    time.Time `json:"created_at"`
+	VersionLabel string    `json:"version_label,omitempty"`
 }
 
 type BundleVersionNotes struct {
-	Version   int       `json:"version"`
-	Notes     string    `json:"notes"`
-	CreatedAt time.Time `json:"created_at"`
+	Version      int       `json:"version"`
+	Notes        string    `json:"notes"`
+	CreatedAt    time.Time `json:"created_at"`
+	VersionLabel string    `json:"version_label,omitempty"`
 }
 
 // BundleOwner is the user who made a bundle, as anyone can see it on Discord.
@@ -96,6 +98,7 @@ func BundleToWire(bundle *model.Bundle) *Bundle {
 	res := &Bundle{
 		ID:                 bundle.ID,
 		Version:            bundle.Version,
+		VersionLabel:       bundle.VersionLabel,
 		Name:               bundle.Name,
 		Description:        bundle.Description,
 		Content:            bundle.Content,
@@ -109,7 +112,7 @@ func BundleToWire(bundle *model.Bundle) *Bundle {
 		CreatedAt:          bundle.CreatedAt,
 	}
 	for i, n := range bundle.VersionNotes {
-		res.VersionNotes[i] = BundleVersionNotes{Version: n.Version, Notes: n.Notes, CreatedAt: n.CreatedAt}
+		res.VersionNotes[i] = BundleVersionNotes{Version: n.Version, VersionLabel: n.VersionLabel, Notes: n.Notes, CreatedAt: n.CreatedAt}
 	}
 
 	if listing := bundle.Listing; listing != nil {
@@ -150,7 +153,9 @@ type UserBundle struct {
 	// never submitted.
 	LatestReview *BundleReview `json:"latest_review"`
 	// RemovedReason is why Kite took the bundle down, null if it didn't.
-	RemovedReason null.String `json:"removed_reason"`
+	RemovedReason        null.String `json:"removed_reason"`
+	VersionLabel         string      `json:"version_label,omitempty"`
+	ApprovedVersionLabel string      `json:"approved_version_label,omitempty"`
 }
 
 type UserBundleListResponse = []*UserBundle
@@ -207,12 +212,14 @@ type BundleCreateResponse = UserBundle
 type BundleVersionCreateRequest struct {
 	BundleContentRequest `tstype:",extends"`
 	// Notes are what changed, for the apps that update to it.
-	Notes string `json:"notes"`
+	Notes        string `json:"notes"`
+	VersionLabel string `json:"version_label,omitempty"`
 }
 
 func (req BundleVersionCreateRequest) Validate() error {
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.Notes, validation.Length(0, 1000)),
+		validation.Field(&req.VersionLabel, validation.Length(0, 20)),
 	); err != nil {
 		return err
 	}
@@ -240,16 +247,18 @@ type BundleListingDeleteResponse struct{}
 
 func UserBundleToWire(bundle *model.Bundle) *UserBundle {
 	res := &UserBundle{
-		ID:                 bundle.ID,
-		Version:            bundle.Version,
-		Name:               bundle.Name,
-		Description:        bundle.Description,
-		SourceAppID:        bundle.SourceAppID,
-		ItemCount:          bundle.ItemCount,
-		InstallCount:       bundle.InstallCount,
-		ActiveInstallCount: bundle.ActiveInstallCount,
-		Page:               BundleListingToWire(bundle.Page),
-		LatestReview:       BundleReviewToWire(bundle.LatestReview),
+		ID:                   bundle.ID,
+		Version:              bundle.Version,
+		VersionLabel:         bundle.VersionLabel,
+		ApprovedVersionLabel: bundle.ApprovedVersionLabel,
+		Name:                 bundle.Name,
+		Description:          bundle.Description,
+		SourceAppID:          bundle.SourceAppID,
+		ItemCount:            bundle.ItemCount,
+		InstallCount:         bundle.InstallCount,
+		ActiveInstallCount:   bundle.ActiveInstallCount,
+		Page:                 BundleListingToWire(bundle.Page),
+		LatestReview:         BundleReviewToWire(bundle.LatestReview),
 	}
 	if bundle.RemovedAt.Valid {
 		res.RemovedReason = null.StringFrom(bundle.RemovedReason)

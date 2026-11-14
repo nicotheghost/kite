@@ -32,6 +32,7 @@ type Bundle struct {
 	EventListeners []EventListener `json:"event_listeners"`
 	Messages       []Message       `json:"messages"`
 	Variables      []Variable      `json:"variables"`
+	VersionLabel   string          `json:"-"`
 }
 
 // Variable is a stored variable the blocks of the bundle use by its ID.

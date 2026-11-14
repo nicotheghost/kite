@@ -129,6 +129,7 @@ type BundleInstall struct {
 	BundleID      string
 	BundleVersion int32
 	Settings      []byte
+	VersionLabel  string
 }
 
 type BundleInstallCount struct {
@@ -186,11 +187,12 @@ type BundleStar struct {
 }
 
 type BundleVersion struct {
-	BundleID  string
-	Version   int32
-	Content   []byte
-	CreatedAt pgtype.Timestamp
-	Notes     string
+	BundleID     string
+	Version      int32
+	Content      []byte
+	CreatedAt    pgtype.Timestamp
+	Notes        string
+	VersionLabel string
 }
 
 type Collaborator struct {

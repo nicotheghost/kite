@@ -34,10 +34,12 @@ type BundleInstall struct {
 	// user can't see the bundle anymore.
 	AvailableVersion null.Int `json:"available_version"`
 	// Removed is whether Kite took the bundle down for breaking the rules.
-	Removed   bool                `json:"removed"`
-	Items     []BundleInstallItem `json:"items"`
-	CreatedAt time.Time           `json:"created_at"`
-	UpdatedAt time.Time           `json:"updated_at"`
+	Removed               bool                `json:"removed"`
+	Items                 []BundleInstallItem `json:"items"`
+	CreatedAt             time.Time           `json:"created_at"`
+	UpdatedAt             time.Time           `json:"updated_at"`
+	VersionLabel          string              `json:"version_label,omitempty"`
+	AvailableVersionLabel string              `json:"available_version_label,omitempty"`
 }
 
 // BundleInstallItem is a command, event listener or message the install
@@ -177,6 +179,7 @@ func BundleInstallToWire(install *model.BundleInstall) *BundleInstall {
 		AppID:         install.AppID,
 		BundleID:      install.BundleID,
 		BundleVersion: install.BundleVersion,
+		VersionLabel:  install.VersionLabel,
 		Parameters:    install.Parameters,
 		Items:         items,
 		CreatedAt:     install.CreatedAt,

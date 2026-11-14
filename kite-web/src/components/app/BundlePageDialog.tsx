@@ -181,9 +181,10 @@ function BundlePageForm({
         <DialogDescription>
           {mode === "list" ? (
             <>
-              Kite reviews version {bundle.version} and this page before
-              it&apos;s listed. Once it is, its link leads to the Marketplace,
-              and new versions are reviewed before apps get them.{" "}
+              Kite reviews version {bundle.version_label ?? bundle.version} and
+              this page before it&apos;s listed. Once it is, its link leads to
+              the Marketplace, and new versions are reviewed before apps get
+              them.{" "}
               <a
                 href={`${env.NEXT_PUBLIC_DOCS_LINK}/guides/publishing-templates`}
                 target="_blank"
@@ -195,7 +196,9 @@ function BundlePageForm({
           ) : mode === "review" &&
             bundle.listed_version !== null &&
             bundle.listed_version !== bundle.version ? (
-            `Kite reviews your changes with version ${bundle.version}, which apps get once it's approved.`
+            `Kite reviews your changes with version ${
+              bundle.version_label ?? bundle.version
+            }, which apps get once it's approved.`
           ) : mode === "review" ? (
             "Kite reviews your changes before the Marketplace shows them. Apps that added it don't get an update for them."
           ) : (

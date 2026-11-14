@@ -488,6 +488,7 @@ export type TemplateAuthor =
 export type Template = {
   id: string;
   version: number;
+  versionLabel?: string;
   name: string;
   description: string;
   // icon is the name of a Lucide icon, in kebab case.
@@ -499,7 +500,7 @@ export type Template = {
   // of users a review approved.
   listed: boolean;
   // What changed in the last versions, newest first.
-  versionNotes: { version: number; notes: string }[];
+  versionNotes: { version: number; notes: string; version_label?: string }[];
   // How many apps added it, not counting its author's, unknown for the
   // official ones from the files.
   installs?: number;
@@ -614,6 +615,7 @@ export function templateFromBundle(bundle: Bundle): Template | undefined {
     about: listing?.about ?? [],
     faq: listing?.faq ?? [],
     setup: listing?.setup,
+    versionLabel: bundle.version_label,
     versionNotes: bundle.version_notes ?? [],
   };
 

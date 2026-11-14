@@ -292,9 +292,10 @@ export function TemplateInstallCard({
       <Card className="p-5">
         <div className="font-semibold mb-1">Add to your app</div>
         <p className="text-sm text-muted-foreground">
-          Your app has version {existing.bundle_version} of this template.
-          Update it to version {template.version} first, then you can add what
-          it doesn&apos;t have yet.
+          Your app has version{" "}
+          {existing.version_label ?? existing.bundle_version} of this template.
+          Update it to version {template.versionLabel ?? template.version}{" "}
+          first, then you can add what it doesn&apos;t have yet.
         </p>
       </Card>
     );

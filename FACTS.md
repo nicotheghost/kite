@@ -31,6 +31,7 @@ Features (feature | what it means for the user | free or paid):
 - Message templates | design embeds, buttons, and select menus and see them as Discord shows them | free
 - Stored variables | keep points, counts, and settings per member or server, up to 64 KB per value | free
 - Marketplace templates | add a ready-made bot, like moderation or giveaways, then change it | free
+- Template versions | creators can enter a higher version such as 1.01 when publishing an update | free
 - Share and list your own templates | anyone with the link can add it, and listed ones show in the Marketplace | free
 - Flow AI, opened with the Ask AI button in the editor | describe a command and it adds and connects the blocks | free, 2 prompts a month, more on paid plans
 - AI blocks (Ask AI, Search the Web, AI Check, AI Choice, AI Score, AI Translate) | the bot answers questions and sorts messages | free, paid in credits
