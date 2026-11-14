@@ -65,6 +65,9 @@ type CommandUpdateRequest struct {
 }
 
 func (req CommandUpdateRequest) Validate() error {
+	if req.DraftAction == "save" && (req.FlowSource.Nodes == nil || req.FlowSource.Edges == nil) {
+		return validation.Errors{"flow_source": validation.NewError("invalid_draft_flow", "A draft needs a blocks list and a connections list.")}
+	}
 	return validation.ValidateStruct(&req,
 		validation.Field(&req.FlowSource, validation.Skip.When(req.DraftAction == "save"), validation.Required),
 		validation.Field(&req.EditorSession, editorSessionLength),

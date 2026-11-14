@@ -27,3 +27,10 @@ func TestDraftUpdateAllowsUnfinishedBlocks(t *testing.T) {
 		})
 	}
 }
+
+func TestDraftUpdateRequiresFlowArrays(t *testing.T) {
+	command := CommandUpdateRequest{DraftAction: "save"}
+	listener := EventListenerUpdateRequest{DraftAction: "save"}
+	require.Error(t, command.Validate())
+	require.Error(t, listener.Validate())
+}
